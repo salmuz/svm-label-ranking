@@ -20,7 +20,7 @@ dependency_links = [x.strip().replace('git+', '') for x in all_reqs if x.startsw
 setup(
     name='svm-label-ranking',
     version=__version__,
-    description='SVM Label Ranking problem ',
+    description='SVM Label Ranking problem',
     long_description=long_description,
     url='https://github.com/salmuz/svm-label-ranking',
     download_url='https://github.com/salmuz/svm-label-ranking/tarball/' + __version__,
@@ -33,7 +33,7 @@ setup(
     keywords='',
     packages=find_packages(exclude=['docs', 'tests*']),
     include_package_data=True,
-    author='svm-label-ranking',
+    author='Yonatan-Carlos Carranza-Alarcon',
     install_requires=install_requires,
     dependency_links=dependency_links,
     author_email='salmuz@gmail.com'

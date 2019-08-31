@@ -1,3 +1,6 @@
+scipy
+cvxopt
+numpy
 # Dev/Deployment
 sphinx
 sphinx_rtd_theme
