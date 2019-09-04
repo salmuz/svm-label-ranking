@@ -1,5 +1,5 @@
-from svm_label_raking import arff
-from svm_label_raking.model import SVMLR
+from svm_label_ranking import arff
+from svm_label_ranking.model import SVMLR
 
 # Example script of executing the svm multi label model.
 # By default, we set the possible value of hyper-parameter v=[0.1, 0.4, 0.7, 0.9, 8, 24, 32, 128]. It could be
@@ -9,7 +9,7 @@ from svm_label_raking.model import SVMLR
 print("Example of SVM label ranking - Data set IRIS \n")
 v = list([0.1, 0.4, 0.7, 0.9, 8, 24, 32, 128])
 
-model = SVMLR(v_list_default=v)
+model = SVMLR()
 data_arff = arff.ArffFile()
 data_arff.load("iris_dense.xarff")
 
@@ -18,7 +18,7 @@ model.learn(data_arff)
 print("Process learning finished")
 
 # Prediction
-predictions = model.predict([data_arff.data[1], data_arff.data[2]])
+predictions = model.predict([data_arff.data[1]])
 
 print("Prediction is \n")
 print(predictions)

@@ -30,7 +30,7 @@ setup(
       'Intended Audience :: Developers',
       'Programming Language :: Python :: 3',
     ],
-    keywords='',
+    keywords='SVM, Label Ranking',
     packages=find_packages(exclude=['docs', 'tests*']),
     include_package_data=True,
     author='Yonatan-Carlos Carranza-Alarcon',
