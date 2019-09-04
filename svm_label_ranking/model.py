@@ -180,8 +180,12 @@ class SVMLR(object):
                                    np.repeat(0.0, size_H),
                                    np.repeat(max_limit, size_H),
                                    size_H)
+
         solution = np.array([v for v in res['x']])
-        # @salmuz put some log if solution if not optimal
+
+        if res['status'] != 'optimal':
+            self._logger.info("[Solution-not-Optimal-Not-convergence] %s", solution)
+
         return solution
 
     def __calculate_H(self, q, data):

@@ -24,8 +24,9 @@ Or clone the repo:
     
 Contributing
 ------------
-
-TBD
+* Zhou Xingjian (from [repository](https://github.com/Kkkassini/classifip/commit/8b5c54860c523ca229af91fac32657b6e8ebbe68))
+* Yating Deng (from [repository](https://github.com/Kkkassini/classifip/commit/8b5c54860c523ca229af91fac32657b6e8ebbe68))
+* Yonatan-Carlos Carranza-Alarcon
 
 Example
 -------

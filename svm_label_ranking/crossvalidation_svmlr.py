@@ -78,8 +78,8 @@ def cross_validation(in_path,
             acc_correctness_kfold = __computing_training_testing_step(manager, training, testing, 0)
             # save and print save partial calculations
             avg_correctness[time] += acc_correctness_kfold
-            logger.debug("Partial-k-fold_step (k-fold, acc_correctness, cum_avg_correctness) (%s, %s, %s)",
-                         k_fold, acc_correctness_kfold, avg_correctness[time])
+            logger.debug("Partial-k-fold_step (time, k-fold, acc_correctness, cum_avg_correctness) (%s, %s, %s, %s)",
+                         time, k_fold, acc_correctness_kfold, avg_correctness[time])
             writer.writerow([time, k_fold, acc_correctness_kfold])
             file_csv.flush()
             k_fold += 1
@@ -91,5 +91,6 @@ def cross_validation(in_path,
 
     manager.poisonPillTraining()
     file_csv.close()
-    logger.debug("Results Final: (mean, std) (%s, %s)", np.mean(avg_correctness), np.std(avg_correctness))
+    logger.debug("Results Final: (acc, mean, std) (%s, %s, %s)", avg_correctness,
+                 np.mean(avg_correctness), np.std(avg_correctness))
     return avg_correctness
