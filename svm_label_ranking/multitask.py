@@ -6,6 +6,7 @@
 
 from multiprocessing import Process, Queue, cpu_count, JoinableQueue
 import importlib
+import time
 
 
 def __create_dynamic_class(clazz):
@@ -25,14 +26,16 @@ def prediction(pid, tasks, queue, results, class_model):
         model = __create_dynamic_class(class_model)
         while True:
             training = queue.get()
-            if training is None: break
+            if training is None:
+                break
             model.learn(**training)
             while True:
                 task = tasks.get()
                 if task is None:
                     break
                 prediction = model.evaluate(**task['kwargs'])
-                print("(pid, prediction, ground-truth) ", pid, prediction, task['y_test'], flush=True)
+                print(time.strftime('%x %X %Z'), "(pid, prediction, ground-truth) ",
+                      pid, prediction, task['y_test'], flush=True)
                 results.put(dict({'prediction': prediction, 'ground_truth': task['y_test']}))
             queue.task_done()
     except Exception as e:

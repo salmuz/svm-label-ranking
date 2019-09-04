@@ -4,6 +4,7 @@
 import os
 import csv
 import numpy as np
+from time import sleep
 from .model import SVMLR
 from .tools import train_test_split, create_logger, generate_seeds, k_fold_cross_validation, correctness_measure
 from .multitask import ManagerWorkers
@@ -24,6 +25,9 @@ def __computing_training_testing_step(manager, learn_data_set, test_data_set, ac
     # Putting poison pill all workers in order to release memory and process finished
     manager.poisonPillWorkers()
     manager.joinTraining()  # wait all process for computing results
+
+    # Wait time if necessary when process are not unsynchronized
+    sleep(5)  # 5 seconds waiting
 
     # Recovery all inference data of all parallel process
     shared_results = manager.getResults()
