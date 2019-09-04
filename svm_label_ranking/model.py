@@ -184,7 +184,7 @@ class SVMLR(object):
         solution = np.array([v for v in res['x']])
 
         if res['status'] != 'optimal':
-            self._logger.info("[Solution-not-Optimal-Not-convergence] %s", solution)
+            self._logger.info("[Solution-not-Optimal-Not-convergence] v_default (%s)", v)
 
         return solution
 
