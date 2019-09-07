@@ -4,6 +4,7 @@
 import logging
 import sys
 import random
+import time
 import numpy as np
 
 
@@ -34,6 +35,7 @@ def k_fold_cross_validation(data, K, randomise=False, random_seed=None):
     """
     if randomise:
         import random
+
         if random_seed != None:
             random.seed(random_seed)
         random.shuffle(data.data)
@@ -69,7 +71,9 @@ def create_logger(name="default", DEBUG=False):
         handler = logging.StreamHandler(sys.stdout)
         handler.flush = sys.stdout.flush
         handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
     return logger
@@ -106,3 +110,21 @@ def correctness_measure(y_true, y_predict):
     for idx, label in enumerate(y_true):
         sum_dist += abs(idx - y_predict.index(label))
     return 1 - sum_dist / (0.5 * k * k)
+
+
+def timeit(method):
+    def timed(*args, **kwargs):
+        DEBUG = args[0].DEBUG if len(args) > 0 and hasattr(args[0], "DEBUG") else False
+        if DEBUG:
+            ts = time.time()
+            result = method(*args, **kwargs)
+            te = time.time()
+            print(
+                "%s - %r  %2.2f ms"
+                % (time.strftime("%Y-%m-%d %X"), method.__name__, (te - ts) * 1000)
+            )
+            return result
+        else:
+            return method(*args, **kwargs)
+
+    return timed

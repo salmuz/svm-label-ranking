@@ -85,7 +85,7 @@ class ArffFile(object):
 
     def __init__(self):
         """Construct an empty ARFF structure."""
-        self.relation = ''
+        self.relation = ""
         self.attributes = []
         self.attribute_types = dict()
         self.attribute_data = dict()
@@ -120,15 +120,15 @@ class ArffFile(object):
         :param select: the names of the classes to retain
         :type select: list
         :return: a new ArffFile structure containing only selected classes
-        :rtype: :class:`~classifip.dataset.arff.ArffFile`
+        :rtype: :class:`arff.ArffFile`
 
         .. warning::
 
             should not be used with files containing ranks
         """
-        if 'class' not in self.attribute_data.keys():
+        if "class" not in self.attribute_data.keys():
             raise NameError("Cannot find a class attribute.")
-        if set(select) - set(self.attribute_data['class']) != set([]):
+        if set(select) - set(self.attribute_data["class"]) != set([]):
             raise NameError("Specified classes not a subset of existing ones!")
         selection = ArffFile()
         # construct list with sets of indices matching class names
@@ -139,7 +139,7 @@ class ArffFile(object):
 
         selection.attribute_data = self.attribute_data.copy()
         selection.attribute_types = self.attribute_types.copy()
-        selection.attribute_data['class'] = select
+        selection.attribute_data["class"] = select
         selection.data = selected_data
         selection.relation = self.relation
         selection.attributes = self.attributes[:]
@@ -155,7 +155,7 @@ class ArffFile(object):
         :param column: name of the attribute
         :type column: string
         :return: a new ArffFile structure containing only selected values in the column
-        :rtype: :class:`~classifip.dataset.arff.ArffFile`
+        :rtype: :class:`arff.ArffFile`
         """
 
         if column not in self.attribute_data.keys():
@@ -169,7 +169,7 @@ class ArffFile(object):
 
         selection.attribute_data = self.attribute_data.copy()
         selection.attribute_types = self.attribute_types.copy()
-        if self.attribute_types[column] == 'nominal':
+        if self.attribute_types[column] == "nominal":
             selection.attribute_data[column] = select
         selection.data = selected_data
         selection.relation = self.relation
@@ -194,17 +194,21 @@ class ArffFile(object):
         :type positive:list
 
         :returns: a new ArffFile structure containing only selected classes
-        :rtype: list of strings, :class:`~classifip.dataset.arff.ArffFile`
+        :rtype: list of strings, :class:`arff.ArffFile`
 
 
         """
-        if 'class' not in self.attribute_data.keys():
+        if "class" not in self.attribute_data.keys():
             raise NameError("Cannot find a class attribute.")
-        if set(positive) - set(self.attribute_data['class']) != set([]):
-            raise NameError("Specified 'positive' classes not a subset of existing ones!")
+        if set(positive) - set(self.attribute_data["class"]) != set([]):
+            raise NameError(
+                "Specified 'positive' classes not a subset of existing ones!"
+            )
 
-        if set(negative) - set(self.attribute_data['class']) != set([]):
-            raise NameError("Specified 'negative' classes not a subset of existing ones!")
+        if set(negative) - set(self.attribute_data["class"]) != set([]):
+            raise NameError(
+                "Specified 'negative' classes not a subset of existing ones!"
+            )
 
         selection = copy.deepcopy(self)
         # initiate the variable for the output data
@@ -217,15 +221,15 @@ class ArffFile(object):
 
             if val[-1] in positive:
                 buff = self.data[i][:]
-                buff[-1] = 'positive'
+                buff[-1] = "positive"
                 selected_data.append(buff)
 
             elif val[-1] in negative:
                 buff = self.data[i][:]
-                buff[-1] = 'negative'
+                buff[-1] = "negative"
                 selected_data.append(buff)
 
-        selection.attribute_data['class'] = ['positive', 'negative']
+        selection.attribute_data["class"] = ["positive", "negative"]
         selection.data = selected_data
 
         return selection
@@ -236,7 +240,7 @@ class ArffFile(object):
         :param column: name of the attribute
         :type column: string
         :return: a new ArffFile structure excluding the specified column
-        :rtype: :class:`~classifip.dataset.arff.ArffFile`
+        :rtype: :class:`arff.ArffFile`
         """
         if column not in self.attribute_data.keys():
             raise NameError("Cannot find specified column.")
@@ -246,7 +250,7 @@ class ArffFile(object):
         del selection.attributes[col_ind]
         del selection.attribute_types[column]
         del selection.attribute_data[column]
-        selection.data = [row[0:col_ind] + row[(col_ind + 1):] for row in self.data]
+        selection.data = [row[0:col_ind] + row[(col_ind + 1) :] for row in self.data]
 
         return selection
 
@@ -254,7 +258,7 @@ class ArffFile(object):
         """Make a copy of the current object
 
         :return: a copy
-        :rtype: :class:`~classifip.dataset.arff.ArffFile`
+        :rtype: :class:`arff.ArffFile`
         """
         cloned = ArffFile()
 
@@ -289,12 +293,12 @@ class ArffFile(object):
         ..todo::
             * encode the method of fayyad et al. 1993 in this function (rather than using Orange)
         """
-        datasave = np.array([map(str, x) for x in self.data]).astype('|S25')
+        datasave = np.array([map(str, x) for x in self.data]).astype("|S25")
         numitem = datasave.shape[0]
 
-        if discmet == 'eqfreq':
+        if discmet == "eqfreq":
             if selfeat != None:
-                if self.attribute_types[selfeat] != 'numeric':
+                if self.attribute_types[selfeat] != "numeric":
                     raise NameError("Selected feature not numeric.")
                 indexfeat = self.attributes.index(selfeat)
                 floatdata = datasave[:, indexfeat].astype(float)
@@ -303,141 +307,186 @@ class ArffFile(object):
                 cutpoint = []
                 newname = []
                 for i in range(numint):
-                    cutpoint.append(datasave[((i + 1) * (numitem / (numint))) - 1, indexfeat])
+                    cutpoint.append(
+                        datasave[((i + 1) * (numitem / (numint))) - 1, indexfeat]
+                    )
                 for i in range(numint):
                     if i == 0:
                         string = str(cutpoint[i])
-                        newname.append('<=' + string[0:min(len(string), 7)])
+                        newname.append("<=" + string[0 : min(len(string), 7)])
                     elif i == (numint - 1):
                         string = str(cutpoint[i - 1])
-                        newname.append('>' + string[0:min(len(string), 7)])
+                        newname.append(">" + string[0 : min(len(string), 7)])
                     else:
                         string1 = str(cutpoint[i - 1])
                         string2 = str(cutpoint[i])
-                        newname.append('(' + string1[0:min(len(string1), 7)]
-                                       + ';' + string2[0:min(len(string2), 7)] + ']')
+                        newname.append(
+                            "("
+                            + string1[0 : min(len(string1), 7)]
+                            + ";"
+                            + string2[0 : min(len(string2), 7)]
+                            + "]"
+                        )
                 for i in range(numint):
                     if i == 0:
-                        datasave[(floatdata <= cutpoint[i].astype(float)), indexfeat] = newname[i]
+                        datasave[
+                            (floatdata <= cutpoint[i].astype(float)), indexfeat
+                        ] = newname[i]
                     elif i == (numint - 1):
-                        datasave[(floatdata > cutpoint[i - 1].astype(float)), indexfeat] = newname[i]
+                        datasave[
+                            (floatdata > cutpoint[i - 1].astype(float)), indexfeat
+                        ] = newname[i]
                     else:
-                        datasave[(floatdata > cutpoint[i - 1].astype(float)) &
-                                 (floatdata <= cutpoint[i].astype(float)), indexfeat] = newname[i]
+                        datasave[
+                            (floatdata > cutpoint[i - 1].astype(float))
+                            & (floatdata <= cutpoint[i].astype(float)),
+                            indexfeat,
+                        ] = newname[i]
                 self.data = datasave.tolist()
-                self.attribute_types[selfeat] = 'nominal'
+                self.attribute_types[selfeat] = "nominal"
                 self.attribute_data[selfeat] = newname
             else:
                 for i in range(len(self.attributes)):
                     feature = self.attributes[i]
-                    if self.attribute_types[feature] == 'numeric':
+                    if self.attribute_types[feature] == "numeric":
                         floatdata = datasave[:, i].astype(float)
                         datasave = datasave[np.argsort(floatdata)]
                         floatdata = floatdata[np.argsort(floatdata)]
                         cutpoint = []
                         newname = []
                         for j in range(numint):
-                            cutpoint.append(datasave[((j + 1) * (numitem / (numint))) - 1, i])
+                            cutpoint.append(
+                                datasave[((j + 1) * (numitem / (numint))) - 1, i]
+                            )
                         for j in range(numint):
                             if j == 0:
                                 string = str(cutpoint[j])
-                                newname.append('<=' + string[0:min(len(string), 7)])
+                                newname.append("<=" + string[0 : min(len(string), 7)])
                             elif j == (numint - 1):
                                 string = str(cutpoint[j - 1])
-                                newname.append('>' + string[0:min(len(string), 7)])
+                                newname.append(">" + string[0 : min(len(string), 7)])
                             else:
                                 string1 = str(cutpoint[j - 1])
                                 string2 = str(cutpoint[j])
-                                newname.append('(' + string1[0:min(len(string1), 7)]
-                                               + ';' + string2[0:min(len(string2), 7)] + ']')
+                                newname.append(
+                                    "("
+                                    + string1[0 : min(len(string1), 7)]
+                                    + ";"
+                                    + string2[0 : min(len(string2), 7)]
+                                    + "]"
+                                )
                         for j in range(numint):
                             if j == 0:
-                                datasave[(floatdata <= cutpoint[j].astype(float)), i] = newname[j]
+                                datasave[
+                                    (floatdata <= cutpoint[j].astype(float)), i
+                                ] = newname[j]
                             elif j == (numint - 1):
-                                datasave[(floatdata > cutpoint[j - 1].astype(float)), i] = newname[j]
+                                datasave[
+                                    (floatdata > cutpoint[j - 1].astype(float)), i
+                                ] = newname[j]
                             else:
-                                datasave[(floatdata > cutpoint[j - 1].astype(float)) &
-                                         (floatdata <= cutpoint[j].astype(float)), i] = newname[j]
-                        self.attribute_types[feature] = 'nominal'
+                                datasave[
+                                    (floatdata > cutpoint[j - 1].astype(float))
+                                    & (floatdata <= cutpoint[j].astype(float)),
+                                    i,
+                                ] = newname[j]
+                        self.attribute_types[feature] = "nominal"
                         self.attribute_data[feature] = newname
                 self.data = datasave.tolist()
 
-        if discmet == 'eqwidth':
+        if discmet == "eqwidth":
             if selfeat != None:
-                if self.attribute_types[selfeat] != 'numeric':
+                if self.attribute_types[selfeat] != "numeric":
                     raise NameError("Selected feature not numeric.")
                 indexfeat = self.attributes.index(selfeat)
                 floatdata = datasave[:, indexfeat].astype(float)
                 cutpoint = []
                 newname = []
-                totalwidth = (floatdata.max() - floatdata.min())
+                totalwidth = floatdata.max() - floatdata.min()
                 for i in range(numint):
                     cutpoint.append(floatdata.min() + (i + 1) * totalwidth / numint)
                 for i in range(numint):
                     if i == 0:
                         string = str(cutpoint[i])
-                        newname.append('<=' + string[0:min(len(string), 7)])
+                        newname.append("<=" + string[0 : min(len(string), 7)])
                     elif i == (numint - 1):
                         string = str(cutpoint[i - 1])
-                        newname.append('>' + string[0:min(len(string), 7)])
+                        newname.append(">" + string[0 : min(len(string), 7)])
                     else:
                         string1 = str(cutpoint[i - 1])
                         string2 = str(cutpoint[i])
-                        newname.append('(' + string1[0:min(len(string1), 7)]
-                                       + ';' + string2[0:min(len(string2), 7)] + ']')
+                        newname.append(
+                            "("
+                            + string1[0 : min(len(string1), 7)]
+                            + ";"
+                            + string2[0 : min(len(string2), 7)]
+                            + "]"
+                        )
                 for i in range(numint):
                     if i == 0:
                         datasave[(floatdata <= cutpoint[i]), indexfeat] = newname[i]
                     elif i == (numint - 1):
                         datasave[(floatdata > cutpoint[i - 1]), indexfeat] = newname[i]
                     else:
-                        datasave[(floatdata > cutpoint[i - 1]) &
-                                 (floatdata <= cutpoint[i]), indexfeat] = newname[i]
+                        datasave[
+                            (floatdata > cutpoint[i - 1]) & (floatdata <= cutpoint[i]),
+                            indexfeat,
+                        ] = newname[i]
                 self.data = datasave.tolist()
-                self.attribute_types[selfeat] = 'nominal'
+                self.attribute_types[selfeat] = "nominal"
                 self.attribute_data[selfeat] = newname
             else:
                 for i in range(len(self.attributes)):
                     feature = self.attributes[i]
-                    if self.attribute_types[feature] == 'numeric':
+                    if self.attribute_types[feature] == "numeric":
                         floatdata = datasave[:, i].astype(float)
                         cutpoint = []
                         newname = []
-                        totalwidth = (floatdata.max() - floatdata.min())
+                        totalwidth = floatdata.max() - floatdata.min()
                         for j in range(numint):
-                            cutpoint.append(floatdata.min() + (j + 1) * totalwidth / numint)
+                            cutpoint.append(
+                                floatdata.min() + (j + 1) * totalwidth / numint
+                            )
                         for j in range(numint):
                             if j == 0:
                                 string = str(cutpoint[j])
-                                newname.append('<=' + string[0:min(len(string), 7)])
+                                newname.append("<=" + string[0 : min(len(string), 7)])
                             elif j == (numint - 1):
                                 string = str(cutpoint[j - 1])
-                                newname.append('>' + string[0:min(len(string), 7)])
+                                newname.append(">" + string[0 : min(len(string), 7)])
                             else:
                                 string1 = str(cutpoint[j - 1])
                                 string2 = str(cutpoint[j])
-                                newname.append('(' + string1[0:min(len(string1), 7)]
-                                               + ';' + string2[0:min(len(string2), 7)] + ']')
+                                newname.append(
+                                    "("
+                                    + string1[0 : min(len(string1), 7)]
+                                    + ";"
+                                    + string2[0 : min(len(string2), 7)]
+                                    + "]"
+                                )
                         for j in range(numint):
                             if j == 0:
                                 datasave[(floatdata <= cutpoint[j]), i] = newname[j]
                             elif j == (numint - 1):
                                 datasave[(floatdata > cutpoint[j - 1]), i] = newname[j]
                             else:
-                                datasave[(floatdata > cutpoint[j - 1]) &
-                                         (floatdata <= cutpoint[j]), i] = newname[j]
-                        self.attribute_types[feature] = 'nominal'
+                                datasave[
+                                    (floatdata > cutpoint[j - 1])
+                                    & (floatdata <= cutpoint[j]),
+                                    i,
+                                ] = newname[j]
+                        self.attribute_types[feature] = "nominal"
                         self.attribute_data[feature] = newname
                 self.data = datasave.tolist()
 
-        if discmet == 'ent':
-            print("sorry, not implemented, please use discretize_ent function of classifip.datasets")
+        if discmet == "ent":
+            print("sorry, not implemented yet")
 
     @staticmethod
     def parse(s):
         """Parse an ARFF File already loaded into a string."""
         a = ArffFile()
-        a.state = 'comment'
+        a.state = "comment"
         a.lineno = 1
         for l in s.splitlines():
             a.__parseline(l)
@@ -452,20 +501,20 @@ class ArffFile(object):
         :type filename: string
 
         """
-        o = open(filename, 'w')
+        o = open(filename, "w")
         o.write(self.write())
         o.close()
 
     def write(self):
         """Write an arff structure to a string."""
         o = []
-        o.append('% ' + re.sub("\n", "\n% ", self.comment))
+        o.append("% " + re.sub("\n", "\n% ", self.comment))
         o.append("@relation " + self.esc(self.relation))
         for a in self.attributes:
             at = self.attribute_types[a]
-            if at == 'numeric':
+            if at == "numeric":
                 o.append("@attribute " + self.esc(a) + " numeric")
-            elif at == 'string':
+            elif at == "string":
                 o.append("@attribute " + self.esc(a) + " string")
             elif at == 'nominal':
                 o.append("@attribute " + self.esc(a) +
@@ -480,23 +529,23 @@ class ArffFile(object):
             line = []
             for e, a in zip(d, self.attributes):
                 at = self.attribute_types[a]
-                if at == 'numeric':
+                if at == "numeric":
                     line.append(str(e))
-                elif at == 'string':
+                elif at == "string":
                     line.append(self.esc(e))
-                elif at == 'nominal':
+                elif at == "nominal":
                     line.append(e)
-                elif at == 'ranking':
+                elif at == "ranking":
                     line.append(e)
                 else:
                     raise "Type " + at + " not supported for writing!"
-            o.append(','.join(line))
+            o.append(",".join(line))
         return "\n".join(o) + "\n"
 
     def esc(self, s):
         "Escape a string if it contains spaces"
-        if re.match(r'\s', s):
-            return "\'" + s + "\'"
+        if re.match(r"\s", s):
+            return "'" + s + "'"
         else:
             return s
 
@@ -517,26 +566,35 @@ class ArffFile(object):
         self.attribute_types[name] = atype
         self.attribute_data[name] = data
 
+    def get_features_matrix(self):
+        """
+        :return: a numpy matrix of features
+        :rtype: :class:`numpy.array`
+        """
+        col_ind = self.attributes.index("L")
+        features_list = [row[0:col_ind] + row[(col_ind + 1) :] for row in self.data]
+        return np.array(features_list)
+
     def __parseline(self, l):
-        if self.state == 'comment':
-            if len(l) > 0 and l[0] == '%':
+        if self.state == "comment":
+            if len(l) > 0 and l[0] == "%":
                 self.comment.append(l[2:])
             else:
-                self.comment = '\n'.join(self.comment)
-                self.state = 'in_header'
+                self.comment = "\n".join(self.comment)
+                self.state = "in_header"
                 self.__parseline(l)
-        elif self.state == 'in_header':
+        elif self.state == "in_header":
             ll = l.lower()
-            if ll.startswith('@relation '):
+            if ll.startswith("@relation "):
                 self.__parse_relation(l)
-            if ll.startswith('@attribute '):
+            if ll.startswith("@attribute "):
                 self.__parse_attribute(l)
-            if ll.startswith('@data'):
-                self.state = 'data'
-        elif self.state == 'data':
-            if len(l) > 0 and l[0] == '{':
+            if ll.startswith("@data"):
+                self.state = "data"
+        elif self.state == "data":
+            if len(l) > 0 and l[0] == "{":
                 self.__parse_sparse_data(l)
-            elif len(l) > 0 and l[0] != '%':
+            elif len(l) > 0 and l[0] != "%":
                 self.__parse_data(l)
 
     def __parse_relation(self, l):
@@ -544,60 +602,66 @@ class ArffFile(object):
         self.relation = l[1]
 
     def __parse_attribute(self, l):
-        p = re.compile(r'[a-zA-Z_-][a-zA-Z0-9_-]*|\{[^\}]+\}|\'[^\']+\'|\"[^\"]+\"')
+        p = re.compile(r"[a-zA-Z_-][a-zA-Z0-9_-]*|\{[^\}]+\}|\'[^\']+\'|\"[^\"]+\"")
         l = [s.strip() for s in p.findall(l)]
         name = l[1].replace("'", "")  # Modification : all ' in typename are removed
         atype = l[2]
         atypel = atype.lower()
-        if (atypel == 'real' or
-                atypel == 'numeric' or
-                atypel == 'integer'):
-            self.define_attribute(name, 'numeric')
-        elif atypel == 'string':
-            self.define_attribute(name, 'string')
-        elif atypel == 'ranking':
+        if atypel == "real" or atypel == "numeric" or atypel == "integer":
+            self.define_attribute(name, "numeric")
+        elif atypel == "string":
+            self.define_attribute(name, "string")
+        elif atypel == "ranking":
             labelrow = l[3]
-            labels = [s.strip() for s in labelrow[1:-1].split(',')]
-            self.define_attribute(name, 'ranking', labels)
-        elif atype[0] == '{' and atype[-1] == '}':
-            values = [s.strip() for s in atype[1:-1].split(',')]
-            self.define_attribute(name, 'nominal', values)
+            labels = [s.strip() for s in labelrow[1:-1].split(",")]
+            self.define_attribute(name, "ranking", labels)
+        elif atype[0] == "{" and atype[-1] == "}":
+            values = [s.strip() for s in atype[1:-1].split(",")]
+            self.define_attribute(name, "nominal", values)
         else:
-            self.__print_warning("unsupported type " + atype + " for attribute " + name + ".")
+            self.__print_warning(
+                "unsupported type " + atype + " for attribute " + name + "."
+            )
 
     def __append_data(self, datum, attrib, value):
         at = self.attribute_types[attrib]
-        if at == 'numeric':
-            if re.match(r'[+-]?[0-9]+(?:\.[0-9]*(?:[eE]-?[0-9]+)?)?', value):
+        if at == "numeric":
+            if re.match(r"[+-]?[0-9]+(?:\.[0-9]*(?:[eE]-?[0-9]+)?)?", value):
                 datum.append(float(value))
-            elif value == '?':
-                datum.append(float('nan'))
+            elif value == "?":
+                datum.append(float("nan"))
             else:
                 self.__print_warning(
-                    'non-numeric value %s for numeric attribute %s' % (value, self.attributes[idx_attrib]))
+                    "non-numeric value %s for numeric attribute %s"
+                    % (value, self.attributes[idx_attrib])
+                )
                 return
-        elif at == 'string':
+        elif at == "string":
             datum.append(value)
-        elif at == 'ranking':
-            for k in value.split('>'):
+        elif at == "ranking":
+            for k in value.split(">"):
                 if k not in self.attribute_data[attrib]:
                     self.__print_warning(
-                        'incorrect label %s for ranking attribute %s' % (value, self.attributes[idx_attrib]))
+                        "incorrect label %s for ranking attribute %s"
+                        % (value, self.attributes[idx_attrib])
+                    )
             datum.append(value)
-        elif at == 'nominal':
+        elif at == "nominal":
             if value in self.attribute_data[attrib]:
                 datum.append(value)
-            elif value == '?':
+            elif value == "?":
                 datum.append(None)
             else:
                 self.__print_warning(
-                    'incorrect value %s for nominal attribute %s' % (value, self.attributes[idx_attrib]))
+                    "incorrect value %s for nominal attribute %s"
+                    % (value, self.attributes[idx_attrib])
+                )
 
     def __parse_sparse_data(self, l):
-        pairs = [s.strip() for s in l.strip('{}').split(',')]
+        pairs = [s.strip() for s in l.strip("{}").split(",")]
         nonzero = []
         for u in pairs:
-            nonzero.append(tuple(u.split(' ')))
+            nonzero.append(tuple(u.split(" ")))
         nonzero = sorted(nonzero, key=lambda x: int(x[0]))
         i = 0
         datum = []
@@ -606,11 +670,11 @@ class ArffFile(object):
                 self.__append_data(datum, self.attributes[j], nonzero[i][1])
                 i = i + 1
             else:
-                self.__append_data(datum, self.attributes[j], '0')
+                self.__append_data(datum, self.attributes[j], "0")
         self.data.append(datum)
 
     def __parse_data(self, l):
-        l = [s.strip() for s in l.split(',')]
+        l = [s.strip() for s in l.split(",")]
         if len(l) != len(self.attributes):
             return
 
@@ -620,17 +684,21 @@ class ArffFile(object):
         self.data.append(datum)
 
     def __print_warning(self, msg):
-        print(('Warning (line %d): ' % self.lineno) + msg)
+        print(("Warning (line %d): " % self.lineno) + msg)
 
     def dump(self):
         """Print an overview of the ARFF file."""
         print("Relation " + self.relation)
         print("  With attributes")
         for n in self.attributes:
-            if self.attribute_types[n] != 'nominal':
+            if self.attribute_types[n] != "nominal":
                 print("    %s of type %s" % (n, self.attribute_types[n]))
             else:
-                print("    " + n + " of type nominal with values " +
-                      ', '.join(self.attribute_data[n]))
+                print(
+                    "    "
+                    + n
+                    + " of type nominal with values "
+                    + ", ".join(self.attribute_data[n])
+                )
         for d in self.data:
             print(d)
