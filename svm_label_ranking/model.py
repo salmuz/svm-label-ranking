@@ -5,9 +5,10 @@
 
 
 from scipy import sparse, random
-from cvxopt import solvers, matrix
-from .tools import create_logger
+from cvxopt import solvers, matrix, spmatrix
+from .tools import create_logger, timeit
 import numpy as np
+from ttictoc import TicToc
 
 
 class SVMLR(object):
@@ -22,13 +23,17 @@ class SVMLR(object):
         """
         self.nb_var = None
         self.nb_labels = None
+        self.nb_instances = None
         self.labels = None
         self.W = list()
         self.res_for_each_v = list()
         self.v_list = list([1]) if v_list_default is None else v_list_default
         # debug settings
         self._logger = create_logger("SVMLR", DEBUG)
-        solvers.options['show_progress'] = DEBUG
+        solvers.options["show_progress"] = DEBUG
+        self._t = TicToc("SVMLR")
+        self._t.set_print_toc(False)
+        self.DEBUG = DEBUG
 
     def learn(self, learn_data_set):
         """
@@ -37,10 +42,11 @@ class SVMLR(object):
         :return: list of list: for each v, a list of vector W, weights for each label
         """
         # 0. Getting the number labels and features, and others
-        self.labels = learn_data_set.attribute_data['L'][:]
+        self.labels = learn_data_set.attribute_data["L"][:]
         self.nb_labels = len(self.labels)
         self.nb_var = len(learn_data_set.attribute_data) - 1
         training_data = learn_data_set.data
+        self.nb_instances = len(training_data)
 
         # 1. Create list Q: in list Q, for each instance, we stock the arcs possibles of the labels.
         q = self.__stockage_Q(data=training_data)
@@ -49,12 +55,15 @@ class SVMLR(object):
         for i in range(len(self.v_list)):
             W.append([])
 
+        A = learn_data_set.get_features_matrix()
+        A = A @ A.T
+        # self._logger.debug("Features pair-wise inner product\n %s", A)
         # 2. For each v, we train the model and get the label weights corresponded.
         for v in self.v_list:
 
             # Get alpha values for the arcs in the Q list, by resolving the dual problem:
             # argmin 0.5*t(alpha)*H*alpha - t(1)*alpha with constraints.
-            alpha_list = self.__get_alpha(data=training_data, v=v)
+            alpha_list = self.__get_alpha(A=A, q=q, v=v)
             v_index = self.v_list.index(v)
             for i in range(1, self.nb_labels + 1):
 
@@ -67,14 +76,16 @@ class SVMLR(object):
 
                     # Check each couple in alpha_i, if there's a couple that begins with L_i
                     for couple_index in range(1, len(q[0]) + 1):
-                        if 'L' + str(i) == q[j - 1][couple_index - 1][0]:
+                        if "L" + str(i) == q[j - 1][couple_index - 1][0]:
                             # Search for the value corresponded in get_alpha()
                             alpha = alpha_list[(couple_index - 1) * length_data + j - 1]
                             part_sum = part_sum + alpha
-                        if 'L' + str(i) == q[j - 1][couple_index - 1][1]:
+                        if "L" + str(i) == q[j - 1][couple_index - 1][1]:
                             alpha = alpha_list[(couple_index - 1) * length_data + j - 1]
                             part_reduce = part_reduce + alpha
-                    product = np.dot(part_sum - part_reduce, training_data[j - 1][:self.nb_var])
+                    product = np.dot(
+                        part_sum - part_reduce, training_data[j - 1][: self.nb_var]
+                    )
                     wl = wl + product
                 W[v_index].append(wl)
         self.W = W
@@ -95,7 +106,7 @@ class SVMLR(object):
             :return: String
             """
             _pref = np.argsort(weights_list)[::-1]
-            pref = ['L' + str(x + 1) for x in _pref]
+            pref = ["L" + str(x + 1) for x in _pref]
             return pref
 
         res_predictions = []
@@ -106,7 +117,7 @@ class SVMLR(object):
             for instance in data_to_predict:
 
                 for w_label in range(0, len(w_v)):
-                    wl_list.append(np.dot(0.5 * w_v[w_label], instance[:self.nb_var]))
+                    wl_list.append(np.dot(0.5 * w_v[w_label], instance[: self.nb_var]))
 
                 if res_format_string:
                     prediction.append(__get_label_preference_by_weights(wl_list))
@@ -116,7 +127,7 @@ class SVMLR(object):
                     for label in range(0, len(list_temp)):
                         point = list_temp.index(label)
                         rank.append(point)
-                    labels = ['L' + str(i + 1) for i in range(0, len(rank))]
+                    labels = ["L" + str(i + 1) for i in range(0, len(rank))]
                     dict1 = {}
                     for j in range(len(labels)):
                         dict1[labels[j]] = rank[j]
@@ -143,6 +154,7 @@ class SVMLR(object):
 
         return res
 
+    @timeit
     def __stockage_Q(self, data):
         """
         build list Q for all the instances
@@ -153,116 +165,133 @@ class SVMLR(object):
         length_data = len(data)
         for i in range(length_data):
             label = data[i][self.nb_var]
-            labels = [i for i in label.split('>')]
+            labels = [i for i in label.split(">")]
             q_list_for_1_instance = SVMLR.__create_q_couples_list(labels)
             Q.append(q_list_for_1_instance)
         return Q
 
-    def __get_alpha(self, data, v):
+    @timeit
+    def __get_alpha(self, A, q, v):
         """
         :return: list of alpha, size k(k-1)/2
         """
-        length_data = len(data)
-        # 1. Create the list Q which contains the arcs of labels
-        q = self.__stockage_Q(data)
+        # 1. Calculate matrix H
+        # h = self.old_calculate_H(q, data)
+        h = self.__calculate_H(q, A)
+        coo = h.tocoo()
+        h_numpy = spmatrix(coo.data.tolist(),
+                           coo.row.tolist(),
+                           coo.col.tolist(),
+                           size=h.shape)
+        # self._logger.debug("Full matrix\n %s", h.todense())
 
-        # 2. Calculate matrix H
-        h = self.__calculate_H(q, data)
-        h_numpy = h.todense()
-        h_numpy = h_numpy.astype(np.double)
-
-        # 3.Set the constraints for the dual problem
+        # 2.Set the constraints for the dual problem
         e_i = int(0.5 * self.nb_labels * (self.nb_labels - 1))
         max_limit = float(v / e_i)
-        size_H = int(0.5 * self.nb_labels * (self.nb_labels - 1) * length_data)
-        res = self.__min_convex_qp(h_numpy,
-                                   np.repeat(-1.0, size_H),
-                                   np.repeat(0.0, size_H),
-                                   np.repeat(max_limit, size_H),
-                                   size_H)
+        size_H = int(0.5 * self.nb_labels * (self.nb_labels - 1) * self.nb_instances)
+        res = self.__min_convex_qp(
+            h_numpy,
+            np.repeat(-1.0, size_H),
+            np.repeat(0.0, size_H),
+            np.repeat(max_limit, size_H),
+            size_H,
+        )
 
-        solution = np.array([v for v in res['x']])
+        solution = np.array([v for v in res["x"]])
 
         if res['status'] != 'optimal':
             self._logger.info("[Solution-not-Optimal-Not-convergence] v_default (%s)", v)
 
         return solution
 
-    def __calculate_H(self, q, data):
+    @timeit
+    def __calculate_H(self, q, A):
         """
-        :param data: dataArff.data
-        :param nb_label: number of labels
+        :param A: numpy array
         :param q: list Q
         :return: Matrix H
         """
-        row_a = []
-        col_a = []
-        data_a = []
-        row_b = []
-        col_b = []
-        data_b = []
-        row_c = []
-        col_c = []
-        data_c = []
-        row_d = []
-        col_d = []
-        data_d = []
+        row_a, col_a, data_a = [], [], []
+        row_b, col_b, data_b = [], [], []
+        row_c, col_c, data_c = [], [], []
+        row_d, col_d, data_d = [], [], []
+        nb_preferences = int(self.nb_labels * (self.nb_labels - 1) * 0.5)
 
-        length_data = len(data)
-        for r in range(1, int(self.nb_labels * (self.nb_labels - 1) * 0.5) + 1):
-            for l in range(1, int(self.nb_labels * (self.nb_labels - 1) * 0.5) + 1):
-                for j in range(0, length_data):
-                    for i in range(0, length_data):
+        self._logger.debug('Size H-matrix (%s, %s, %s)', nb_preferences,
+                           self.nb_instances, nb_preferences * self.nb_instances)
+        for r in range(1, nb_preferences + 1):
+            for l in range(r, nb_preferences + 1):
+                self._t.tic()
+                for j in range(0, self.nb_instances):
+                    _j = j if r == l else 0
+                    for i in range(_j, self.nb_instances):
                         list_pq = q[i][r - 1]
                         list_ab = q[j][l - 1]
+                        i_row = self.nb_instances * (r - 1) + i
+                        i_col = self.nb_instances * (l - 1) + j
+                        cell_data = A[i, j]
 
                         if list_pq[0] == list_ab[0]:
-                            row_a.append(length_data * (r - 1) + i)
-                            col_a.append(length_data * (l - 1) + j)
-                            x_i = np.mat(data[i][:self.nb_var])
-                            x_j = np.mat(data[j][:self.nb_var])
-                            data_a.append((x_i * x_j.T).item())
+                            if i_col == i_row:
+                                row_a.append(i_row)
+                                col_a.append(i_col)
+                                data_a.append(cell_data)
+                            else:
+                                row_a.extend((i_row, i_col))
+                                col_a.extend((i_col, i_row))
+                                data_a.extend((cell_data, cell_data))
 
                         elif list_pq[0] == list_ab[1]:
-                            row_b.append(length_data * (r - 1) + i)
-                            col_b.append(length_data * (l - 1) + j)
-                            x_i = np.mat(data[i][:self.nb_var])
-                            x_j = np.mat(data[j][:self.nb_var])
-                            data_b.append((x_i * x_j.T).item())
+                            if i_col == i_row:
+                                row_b.append(i_row)
+                                col_b.append(i_col)
+                                data_b.append(cell_data)
+                            else:
+                                row_b.extend((i_row, i_col))
+                                col_b.extend((i_col, i_row))
+                                data_b.extend((cell_data, cell_data))
 
                         elif list_pq[1] == list_ab[0]:
-                            row_c.append(length_data * (r - 1) + i)
-                            col_c.append(length_data * (l - 1) + j)
-                            x_i = np.mat(data[i][:self.nb_var])
-                            x_j = np.mat(data[j][:self.nb_var])
-                            data_c.append((x_i * x_j.T).item())
+                            if i_col == i_row:
+                                row_c.append(i_row)
+                                col_c.append(i_col)
+                                data_c.append(cell_data)
+                            else:
+                                row_c.extend((i_row, i_col))
+                                col_c.extend((i_col, i_row))
+                                data_c.extend((cell_data, cell_data))
 
                         elif list_pq[1] == list_ab[1]:
-                            row_d.append(length_data * (r - 1) + i)
-                            col_d.append(length_data * (l - 1) + j)
-                            x_i = np.mat(data[i][:self.nb_var])
-                            x_j = np.mat(data[j][:self.nb_var])
-                            data_d.append((x_i * x_j.T).item())
+                            if i_col == i_row:
+                                row_d.append(i_row)
+                                col_d.append(i_col)
+                                data_d.append(cell_data)
+                            else:
+                                row_d.extend((i_row, i_col))
+                                col_d.extend((i_col, i_row))
+                                data_d.extend((cell_data, cell_data))
+                self._logger.debug('Time pair-wise preference label (%s, %s, %s)',
+                                   'P' + str(r), 'P' + str(l), self._t.toc())
 
-        size_H = int(0.5 * self.nb_labels * (self.nb_labels - 1) * length_data)
+        size_H = int(nb_preferences * self.nb_instances)
         mat_a = sparse.coo_matrix((data_a, (row_a, col_a)), shape=(size_H, size_H))
         mat_b = sparse.coo_matrix((data_b, (row_b, col_b)), shape=(size_H, size_H))
         mat_c = sparse.coo_matrix((data_c, (row_c, col_c)), shape=(size_H, size_H))
         mat_d = sparse.coo_matrix((data_d, (row_d, col_d)), shape=(size_H, size_H))
+        # self._logger.debug("Full matrix(mat_a)\n %s", mat_a.todense())
 
         mat_h = mat_a - mat_b - mat_c + mat_d
 
         return mat_h
 
-    def __min_convex_qp(self, A, q, lower, upper, d):
+    def __min_convex_qp(self, H, q, lower, upper, d):
         ell_lower = matrix(lower, (d, 1))
         ell_upper = matrix(upper, (d, 1))
-        P = matrix(A)
         q = matrix(q, (d, 1))
         I = matrix(0.0, (d, d))
-        I[::d + 1] = 1
+        I[:: d + 1] = 1
         G = matrix([I, -I])
         h = matrix([ell_upper, -ell_lower])
-        solvers.options['refinement'] = 2
-        solvers.options['kktreg'] = 1e-9
-        return solvers.qp(P=P, q=q, G=G, h=h, kktsolver='ldl', options=solvers.options)
+        solvers.options["refinement"] = 2
+        solvers.options["kktreg"] = 1e-9
+        return solvers.qp(P=H, q=q, G=G, h=h, kktsolver="ldl", options=solvers.options)
