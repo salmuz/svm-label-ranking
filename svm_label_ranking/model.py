@@ -4,7 +4,6 @@
 # License: BSD 3-Clause
 
 
-from scipy import sparse, random
 from cvxopt import solvers, matrix, spmatrix
 from .tools import create_logger, timeit
 import numpy as np
@@ -206,10 +205,7 @@ class SVMLR(object):
         :param q: list Q
         :return: Matrix H
         """
-        row_a, col_a, data_a = [], [], []
-        row_b, col_b, data_b = [], [], []
-        row_c, col_c, data_c = [], [], []
-        row_d, col_d, data_d = [], [], []
+        row, col, data = [], [], []
         nb_preferences = int(self.nb_labels * (self.nb_labels - 1) * 0.5)
 
         self._logger.debug('Size H-matrix (%s, %s, %s)', nb_preferences,
@@ -228,55 +224,51 @@ class SVMLR(object):
 
                         if list_pq[0] == list_ab[0]:
                             if i_col == i_row:
-                                row_a.append(i_row)
-                                col_a.append(i_col)
-                                data_a.append(cell_data)
+                                row.append(i_row)
+                                col.append(i_col)
+                                data.append(cell_data)
                             else:
-                                row_a.extend((i_row, i_col))
-                                col_a.extend((i_col, i_row))
-                                data_a.extend((cell_data, cell_data))
+                                row.extend((i_row, i_col))
+                                col.extend((i_col, i_row))
+                                data.extend((cell_data, cell_data))
 
                         elif list_pq[0] == list_ab[1]:
                             if i_col == i_row:
-                                row_b.append(i_row)
-                                col_b.append(i_col)
-                                data_b.append(cell_data)
+                                row.append(i_row)
+                                col.append(i_col)
+                                data.append(-1 * cell_data)
                             else:
-                                row_b.extend((i_row, i_col))
-                                col_b.extend((i_col, i_row))
-                                data_b.extend((cell_data, cell_data))
+                                row.extend((i_row, i_col))
+                                col.extend((i_col, i_row))
+                                data.extend((-1 * cell_data, -1 * cell_data))
 
                         elif list_pq[1] == list_ab[0]:
                             if i_col == i_row:
-                                row_c.append(i_row)
-                                col_c.append(i_col)
-                                data_c.append(cell_data)
+                                row.append(i_row)
+                                col.append(i_col)
+                                data.append(-1 * cell_data)
                             else:
-                                row_c.extend((i_row, i_col))
-                                col_c.extend((i_col, i_row))
-                                data_c.extend((cell_data, cell_data))
+                                row.extend((i_row, i_col))
+                                col.extend((i_col, i_row))
+                                data.extend((-1 * cell_data, -1 * cell_data))
 
                         elif list_pq[1] == list_ab[1]:
                             if i_col == i_row:
-                                row_d.append(i_row)
-                                col_d.append(i_col)
-                                data_d.append(cell_data)
+                                row.append(i_row)
+                                col.append(i_col)
+                                data.append(cell_data)
                             else:
-                                row_d.extend((i_row, i_col))
-                                col_d.extend((i_col, i_row))
-                                data_d.extend((cell_data, cell_data))
+                                row.extend((i_row, i_col))
+                                col.extend((i_col, i_row))
+                                data.extend((cell_data, cell_data))
                 self._logger.debug('Time pair-wise preference label (%s, %s, %s)',
                                    'P' + str(r), 'P' + str(l), self._t.toc())
 
         size_H = int(nb_preferences * self.nb_instances)
-        mat_a = spmatrix(data_a, row_a, col_a, size=(size_H, size_H))
-        mat_b = spmatrix(data_b, row_b, col_b, size=(size_H, size_H))
-        mat_c = spmatrix(data_c, row_c, col_c, size=(size_H, size_H))
-        mat_d = spmatrix(data_d, row_d, col_d, size=(size_H, size_H))
+        mat_h = spmatrix(data, row, col, size=(size_H, size_H))
         # self._logger.debug("Full matrix(mat_a)\n %s", mat_a)
-
-        # computing the H matrix from equation
-        mat_h = mat_a - mat_b - mat_c + mat_d
+        # for verification with old version
+        # np.savetxt("mat_h.txt", matrix(mat_h), fmt='%0.3f')
 
         return mat_h
 
