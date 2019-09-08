@@ -39,9 +39,9 @@ def k_fold_cross_validation(data, K, randomise=False, random_seed=None):
         if random_seed != None:
             random.seed(random_seed)
         random.shuffle(data.data)
-    datatr = data.make_clone()
-    datatst = data.make_clone()
     for k in range(K):
+        datatr = data.make_clone()
+        datatst = data.make_clone()
         datatr.data = [x for i, x in enumerate(data.data) if i % K != k]
         datatst.data = [x for i, x in enumerate(data.data) if i % K == k]
         yield datatr, datatst
