@@ -1,0 +1,9 @@
+@relation testing_dense
+
+@attribute A1 NUMERIC
+@attribute A2 NUMERIC
+@attribute L RANKING {L1,L2,L3}
+
+@data
+1.0, 2.0, L1>L2>L3
+2.0, 1.0, L1>L3>L2
