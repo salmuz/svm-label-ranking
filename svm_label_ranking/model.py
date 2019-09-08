@@ -177,12 +177,7 @@ class SVMLR(object):
         """
         # 1. Calculate matrix H
         # h = self.old_calculate_H(q, data)
-        h = self.__calculate_H(q, A)
-        coo = h.tocoo()
-        h_numpy = spmatrix(coo.data.tolist(),
-                           coo.row.tolist(),
-                           coo.col.tolist(),
-                           size=h.shape)
+        h_numpy = self.__calculate_H(q, A)
         # self._logger.debug("Full matrix\n %s", h.todense())
 
         # 2.Set the constraints for the dual problem
@@ -274,12 +269,13 @@ class SVMLR(object):
                                    'P' + str(r), 'P' + str(l), self._t.toc())
 
         size_H = int(nb_preferences * self.nb_instances)
-        mat_a = sparse.coo_matrix((data_a, (row_a, col_a)), shape=(size_H, size_H))
-        mat_b = sparse.coo_matrix((data_b, (row_b, col_b)), shape=(size_H, size_H))
-        mat_c = sparse.coo_matrix((data_c, (row_c, col_c)), shape=(size_H, size_H))
-        mat_d = sparse.coo_matrix((data_d, (row_d, col_d)), shape=(size_H, size_H))
-        # self._logger.debug("Full matrix(mat_a)\n %s", mat_a.todense())
+        mat_a = spmatrix(data_a, row_a, col_a, size=(size_H, size_H))
+        mat_b = spmatrix(data_b, row_b, col_b, size=(size_H, size_H))
+        mat_c = spmatrix(data_c, row_c, col_c, size=(size_H, size_H))
+        mat_d = spmatrix(data_d, row_d, col_d, size=(size_H, size_H))
+        # self._logger.debug("Full matrix(mat_a)\n %s", mat_a)
 
+        # computing the H matrix from equation
         mat_h = mat_a - mat_b - mat_c + mat_d
 
         return mat_h
