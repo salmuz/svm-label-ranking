@@ -63,9 +63,10 @@ class SVMLR(object):
         A = instances @ instances.T
         # case when matrix if very smaller
         self.nb_preferences = int(self.nb_labels * (self.nb_labels - 1) * 0.5)
-        if self.nb_preferences * self.nb_instances <= int(15 * 1e+3) and solver == 'quadratic':
+        is_not_bigger_H_matrix = (self.nb_preferences * self.nb_instances <= int(15 * 1e+3))
+        if is_not_bigger_H_matrix and solver == 'quadratic':
             self.__solver = SVMLR_QP(self.nb_labels, self.nb_instances, self.DEBUG, self.DEBUG_SOLVER)
-        elif solver == 'frank-wolfe':
+        elif solver == 'frank-wolfe' or (not is_not_bigger_H_matrix and solver == 'quadratic'):
             self.__solver = SVMLR_FrankWolfe(self.nb_labels, self.nb_instances, self.DEBUG, self.DEBUG_SOLVER)
         else:
             raise Exception('Solver has not implemented yet ')
