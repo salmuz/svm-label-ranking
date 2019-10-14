@@ -4,10 +4,10 @@
 # License: BSD 3-Clause
 
 
-from tools import create_logger, timeit
+from .tools import create_logger, timeit
 import numpy as np
-from svml_qp import SVMLR_QP
-from svmlr_frankwolfe import SVMLR_FrankWolfe
+from .svml_qp import SVMLR_QP
+from .svmlr_frankwolfe import SVMLR_FrankWolfe
 
 
 class SVMLR(object):

@@ -1,4 +1,4 @@
-from tools import create_logger, timeit
+from .tools import create_logger, timeit
 from cvxopt import solvers, matrix, spmatrix, sparse
 import numpy as np
 from ttictoc import TicToc
