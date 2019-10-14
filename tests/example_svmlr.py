@@ -9,18 +9,31 @@ from svm_label_ranking.model import SVMLR
 print("Example of SVM label ranking - Data set IRIS \n")
 v = list([0.1, 0.4, 0.7, 0.9, 8, 24, 32, 128])
 
-model = SVMLR()
+model = SVMLR(DEBUG=True)
 data_arff = arff.ArffFile()
 data_arff.load("iris_dense.xarff")
 
 # Learning
 model.learn(data_arff)
-print("Process learning finished")
+print("Process learning with quadratic-programming algorithm finished")
 
 # Prediction
-predictions = model.predict([data_arff.data[1]])
+predictions = model.evaluate([data_arff.data[120]])
 
-print("Prediction is \n")
-print(predictions)
+print("Prediction with quadratic-programing cvxopt is \n")
+print(predictions, data_arff.data[120][-1:])
+print(model.evaluate([data_arff.data[0]]), data_arff.data[0][-1:])
 print("\n")
+
+# Learning
+model.learn(data_arff, solver='frank-wolfe')
+print("Process learning with frank-wolf algorithm finished")
+
+print("Prediction with quadratic-programing cvxopt is \n")
+print(predictions, data_arff.data[120][-1:])
+print(model.evaluate([data_arff.data[0]]), data_arff.data[0][-1:])
+print("\n")
+model.plot_solver_convergence()
+
+
 

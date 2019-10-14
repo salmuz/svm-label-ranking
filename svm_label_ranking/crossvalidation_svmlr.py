@@ -33,16 +33,16 @@ def __computing_training_testing_kfold(DEBUG, train_test_data):
         y_prediction = model_svmlr.evaluate(data_to_predict=[test])
         y_true = test[-1]
 
-        # Logging information of prediction and current instance
-        print(time.strftime('%x %X %Z'), "(pid, prediction, ground-truth) ",
-              pid, y_prediction, y_true, flush=True)
-
         # to fix for many others v values (now it just code for one v optimal value)
         y_prediction = y_prediction[0]
 
         # Computing accuracy correctness
         accuracy = correctness_measure(y_true, y_prediction[0])
         acc_correctness = acc_correctness + accuracy / nb_tests
+
+        # Logging information of prediction and current instance
+        print(time.strftime('%x %X %Z'), "(pid, prediction, ground-truth, accuracy) ",
+              pid, y_prediction, y_true, accuracy, flush=True)
 
     return acc_correctness
 
