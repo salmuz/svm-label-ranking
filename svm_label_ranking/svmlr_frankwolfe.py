@@ -20,7 +20,7 @@ class SVMLR_FrankWolfe(object):
         self.DEBUG = DEBUG
 
     @timeit
-    def get_alpha(self, A, q, v, max_iter=2000, tol=1e-8):
+    def get_alpha(self, A, q, v, max_iter=400, tol=1e-8):
         # x. Calculate the large matrix des
         H = self.calculate_H(q, A)
 
@@ -57,10 +57,11 @@ class SVMLR_FrankWolfe(object):
             x_t = x_t + step_size * d_t
             if self.DEBUG:
                 self._trace_convergence.append(g_t)
+                self._logger.debug("Gradient-cost-iteration (it, grad) (%s, %s)", it, g_t)
 
         # from scipy.optimize import linprog
         # res = linprog(grad_fx, bounds=(0, max_limit), options={"presolve": False})
-        self._logger.debug("Cost Fx gradient and #iters (grad_fx, iters, is_optimal) (%s, %s, %s)",
+        self._logger.debug("Cost-Fx-gradient and #iters (grad_fx, iters, is_optimal) (%s, %s, %s)",
                            g_t, it, (it - 1) < max_iter)
         return x_t
 
