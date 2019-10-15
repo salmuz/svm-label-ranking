@@ -26,6 +26,9 @@ def __computing_training_testing_kfold(DEBUG, train_test_data):
     model_svmlr = SVMLR(DEBUG=DEBUG)
     model_svmlr.learn(learn_data_set=training)
 
+    def _pinfo(message, kwargs):
+        print("[" + pid + "][" + time.strftime('%x %X %Z') + "]", "-", message % kwargs, flush=True)
+
     # 2. Computing the prediction and correctness accuracy
     acc_correctness = 0
     nb_tests = len(testing.data)
@@ -41,9 +44,13 @@ def __computing_training_testing_kfold(DEBUG, train_test_data):
         acc_correctness = acc_correctness + accuracy / nb_tests
 
         # Logging information of prediction and current instance
-        print(time.strftime('%x %X %Z'), "(pid, prediction, ground-truth, accuracy) ",
-              pid, y_prediction, y_true, accuracy, flush=True)
-        
+        _desc_features = ",".join([
+            '{0:.18f}'.format(feature).rstrip('0') if str(feature).upper().find("E-") > 0 else str(feature)
+            for feature in test[:-1]
+        ])
+        _pinfo("INSTANCE-COHERENT ( %s ) (prediction, ground-truth, correctness) (%s, %s, %s)",
+               (_desc_features, y_prediction, y_true, accuracy))
+
     print(time.strftime('%x %X %Z'), "(pid, correctness-mean) ", pid, acc_correctness, flush=True)
 
     return acc_correctness
