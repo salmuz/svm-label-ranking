@@ -43,6 +43,8 @@ def __computing_training_testing_kfold(DEBUG, train_test_data):
         # Logging information of prediction and current instance
         print(time.strftime('%x %X %Z'), "(pid, prediction, ground-truth, accuracy) ",
               pid, y_prediction, y_true, accuracy, flush=True)
+        
+    print(time.strftime('%x %X %Z'), "(pid, correctness-mean) ", pid, acc_correctness, flush=True)
 
     return acc_correctness
 

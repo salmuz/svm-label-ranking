@@ -13,7 +13,7 @@ class SVMLR_FrankWolfe(object):
         self.nb_instances = nb_instances
         self.nb_preferences = int(self.nb_labels * (self.nb_labels - 1) * 0.5)
         self.d_size = self.nb_preferences * self.nb_instances
-        self._t = TicToc("__SVMLR_FrankWolf")
+        self._t = TicToc("__SVMLR_FrankWolfe")
         self._t.set_print_toc(False)
         solvers.options["show_progress"] = DEBUG_SOLVER
         self._trace_convergence = []

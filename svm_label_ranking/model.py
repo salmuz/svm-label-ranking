@@ -6,7 +6,7 @@
 
 from .tools import create_logger, timeit
 import numpy as np
-from .svml_qp import SVMLR_QP
+from .svmlr_qp import SVMLR_QP
 from .svmlr_frankwolfe import SVMLR_FrankWolfe
 
 
