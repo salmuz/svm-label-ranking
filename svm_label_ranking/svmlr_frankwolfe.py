@@ -40,7 +40,8 @@ class SVMLR_FrankWolfe(object):
         g_t, it = 0, 0
 
         for it in range(max_iter):
-            grad_fx = self.compute_H_dot_x(x_t, H, c)
+            #grad_fx = self.compute_H_dot_x(x_t, H, c)
+            grad_fx = x_t @ H + c
             res = solvers.lp(matrix(grad_fx, (self.d_size, 1)), G=G, h=h)
 
             if res['status'] != 'optimal':
@@ -51,7 +52,8 @@ class SVMLR_FrankWolfe(object):
             g_t = -1 * (grad_fx.dot(d_t))
             if g_t <= tol:
                 break
-            Hd_t = self.compute_H_dot_x(d_t, H)
+            #Hd_t = self.compute_H_dot_x(d_t, H)
+            Hd_t = d_t @ H
             z_t = d_t.dot(Hd_t)
             step_size = min(-1 * (c.dot(d_t) + x_t.dot(Hd_t)) / z_t, 1.)
             x_t = x_t + step_size * d_t
@@ -77,12 +79,13 @@ class SVMLR_FrankWolfe(object):
 
     @timeit
     def calculate_H(self, q, A):
-        data_col = dict({})
+        #data_col = dict({})
         self._logger.debug('Size H-matrix (nb_preference, nb_instances, d_size) (%s, %s, %s)',
                            self.nb_preferences, self.nb_instances, self.nb_preferences * self.nb_instances)
 
-        for i in range(self.d_size):
-            data_col[i] = np.zeros(self.d_size)
+        #for i in range(self.d_size):
+        #    data_col[i] = np.zeros(self.d_sizei)
+        data_col = np.zeros((self.d_size, self.d_size))
 
         for r in range(1, self.nb_preferences + 1):
             for l in range(r, self.nb_preferences + 1):
