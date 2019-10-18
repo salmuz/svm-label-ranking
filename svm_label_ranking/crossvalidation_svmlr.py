@@ -62,17 +62,22 @@ def cross_validation(in_path,
                      n_times_repeat=10,
                      k_fold_cv=10,
                      nb_process=1,
+                     skip_step_time=0,
                      DEBUG=False):
     assert os.path.exists(in_path), "Without training data, not testing"
     assert os.path.exists(out_path), "File for putting results does not exist"
+    assert skip_step_time < n_times_repeat, "It is not possible skipping most n_times_repeat"
+    assert not (seeds is not None and len(seeds) != n_times_repeat), "It is not same size n_times_repeat and seeds."
+    assert not (seeds is not None and len(seeds) < skip_step_time), "Skip step must be least than seeds size."
 
     logger = create_logger("computing_best_imprecise_mean_sampling", True)
     logger.info("Training data set (%s, %s)", in_path, out_path)
     logger.info(
-        "Parameters (n_times_repeat, k_fold_cv, nbProcess) (%s, %s, %s)",
+        "Parameters (n_times_repeat, k_fold_cv, nbProcess, skip_step_time) (%s, %s, %s, %s)",
         n_times_repeat,
         k_fold_cv,
         nb_process,
+        skip_step_time,
     )
 
     # Seed for get back up if process is killed
@@ -92,12 +97,18 @@ def cross_validation(in_path,
     pool = multiprocessing.Pool(processes=nb_process)
     target_func_train_test = partial(__computing_training_testing_kfold, DEBUG)
 
-    for time in range(0, n_times_repeat):
+    for time in range(skip_step_time, n_times_repeat):
         cvkfold = k_fold_cross_validation(
             data_arff,
             k_fold_cv,
             randomise=True,
             random_seed=seeds[time]
+        )
+        logger.debug(
+            "Learning-time-step (time, seed, nb_process) (%s, %s, %s)",
+            time,
+            seeds[time],
+            nb_process,
         )
         acc_correctness_kfold = pool.map(target_func_train_test, cvkfold)
 

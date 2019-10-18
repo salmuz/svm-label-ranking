@@ -24,6 +24,7 @@ class SVMLR_QP(object):
         h_numpy = self.calculate_H(q, A)
         # np.set_printoptions(linewidth=125)
         # print(np.array(matrix(h_numpy)))
+        # np.savetxt("mat_qd.txt", np.array(matrix(h_numpy)), fmt='%0.5f')
 
         # 2.Set the constraints for the dual problem
         e_i = int(0.5 * self.nb_labels * (self.nb_labels - 1))

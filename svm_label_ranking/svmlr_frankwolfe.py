@@ -1,5 +1,6 @@
-from .tools import create_logger, timeit
+from .tools import create_logger, timeit, is_symmetric
 from cvxopt import solvers, matrix, spmatrix, sparse
+from scipy.sparse import lil_matrix, csr_matrix
 import numpy as np
 from ttictoc import TicToc
 import pylab as plt
@@ -8,7 +9,7 @@ import pylab as plt
 class SVMLR_FrankWolfe(object):
 
     def __init__(self, nb_labels, nb_instances, DEBUG=False, DEBUG_SOLVER=False):
-        self._logger = create_logger("__SVMLR_FrankWolf", DEBUG)
+        self._logger = create_logger("__SVMLR_FrankWolfe", DEBUG)
         self.nb_labels = nb_labels
         self.nb_instances = nb_instances
         self.nb_preferences = int(self.nb_labels * (self.nb_labels - 1) * 0.5)
@@ -20,9 +21,13 @@ class SVMLR_FrankWolfe(object):
         self.DEBUG = DEBUG
 
     @timeit
-    def get_alpha(self, A, q, v, max_iter=400, tol=1e-8):
+    def get_alpha(self, A, q, v, max_iter=1000, tol=1e-8):
         # x. Calculate the large matrix des
         H = self.calculate_H(q, A)
+        # self._logger.debug("Is it semi-definite positive matrix (%s)", is_symmetric(H))
+        # np.set_printoptions(linewidth=125)
+        # print((H + H.T).todense())
+        # np.savetxt("mat_fw.txt", (H + H.T).todense(), fmt='%0.5f')
 
         # 0. Set the constraints for the dual problem
         e_i = self.nb_preferences
@@ -40,8 +45,7 @@ class SVMLR_FrankWolfe(object):
         g_t, it = 0, 0
 
         for it in range(max_iter):
-            #grad_fx = self.compute_H_dot_x(x_t, H, c)
-            grad_fx = x_t @ H + c
+            grad_fx = x_t @ (H + H.T) + c
             res = solvers.lp(matrix(grad_fx, (self.d_size, 1)), G=G, h=h)
 
             if res['status'] != 'optimal':
@@ -52,8 +56,7 @@ class SVMLR_FrankWolfe(object):
             g_t = -1 * (grad_fx.dot(d_t))
             if g_t <= tol:
                 break
-            #Hd_t = self.compute_H_dot_x(d_t, H)
-            Hd_t = d_t @ H
+            Hd_t = d_t @ (H + H.T)
             z_t = d_t.dot(Hd_t)
             step_size = min(-1 * (c.dot(d_t) + x_t.dot(Hd_t)) / z_t, 1.)
             x_t = x_t + step_size * d_t
@@ -64,75 +67,45 @@ class SVMLR_FrankWolfe(object):
         # from scipy.optimize import linprog
         # res = linprog(grad_fx, bounds=(0, max_limit), options={"presolve": False})
         self._logger.debug("Cost-Fx-gradient and #iters (grad_fx, iters, is_optimal) (%s, %s, %s)",
-                           g_t, it, (it - 1) < max_iter)
+                           g_t, it, it + 1 < max_iter)
         return x_t
-
-    def compute_H_dot_x(self, x, A, add_vec=None):
-        x_res = np.zeros(x.shape)
-        if add_vec is None:
-            for key in A.keys():
-                x_res[key] = np.dot(x, A[key])
-        else:
-            for key in A.keys():
-                x_res[key] = np.dot(x, A[key]) + add_vec[key]
-        return x_res
 
     @timeit
     def calculate_H(self, q, A):
-        #data_col = dict({})
         self._logger.debug('Size H-matrix (nb_preference, nb_instances, d_size) (%s, %s, %s)',
                            self.nb_preferences, self.nb_instances, self.nb_preferences * self.nb_instances)
+        data = lil_matrix((self.d_size, self.d_size))
 
-        #for i in range(self.d_size):
-        #    data_col[i] = np.zeros(self.d_sizei)
-        data_col = np.zeros((self.d_size, self.d_size))
-
-        for r in range(1, self.nb_preferences + 1):
-            for l in range(r, self.nb_preferences + 1):
+        for r in range(0, self.nb_preferences):
+            for l in range(r, self.nb_preferences):
                 self._t.tic()
-                for j in range(0, self.nb_instances):
-                    _j = j if r == l else 0
-                    for i in range(_j, self.nb_instances):
-                        list_pq = q[i][r - 1]
-                        list_ab = q[j][l - 1]
-                        i_row = self.nb_instances * (r - 1) + i
-                        i_col = self.nb_instances * (l - 1) + j
+                for i in range(0, self.nb_instances):
+                    _i = i if r == l else 0
+                    for j in range(_i, self.nb_instances):
+                        list_pq = q[i][r]
+                        list_ab = q[j][l]
+                        # creation index (row, column)
+                        i_row = self.nb_instances * r + i
+                        i_col = self.nb_instances * l + j
                         cell_data = A[i, j]
-                        x_cr = data_col[i_col]  # column-row
-                        x_rc = data_col[i_row]  # row-column
+                        if i_row == i_col and r == l:
+                            cell_data = 0.5 * cell_data
 
                         if list_pq[0] == list_ab[0]:
-                            if i_col == i_row:
-                                x_cr[i_row] += cell_data
-                            else:
-                                x_cr[i_row] += cell_data
-                                x_rc[i_col] += cell_data
+                            data[i_row, i_col] += cell_data
 
                         elif list_pq[0] == list_ab[1]:
-                            if i_col == i_row:
-                                x_cr[i_row] -= cell_data
-                            else:
-                                x_cr[i_row] -= cell_data
-                                x_rc[i_col] -= cell_data
+                            data[i_row, i_col] -= cell_data
 
                         elif list_pq[1] == list_ab[0]:
-                            if i_col == i_row:
-                                x_cr[i_row] -= cell_data
-                            else:
-                                x_cr[i_row] -= cell_data
-                                x_rc[i_col] -= cell_data
+                            data[i_row, i_col] -= cell_data
 
                         elif list_pq[1] == list_ab[1]:
-                            if i_col == i_row:
-                                x_cr[i_row] += cell_data
-                            else:
-                                x_cr[i_row] += cell_data
-                                x_rc[i_col] += cell_data
+                            data[i_row, i_col] += cell_data
 
                 self._logger.debug('Time pair-wise preference label (%s, %s, %s)',
-                                   'P' + str(r), 'P' + str(l), self._t.toc())
-
-        return data_col
+                                   'P' + str(r + 1), 'P' + str(l + 1), self._t.toc())
+        return data.tocsr()
 
     def plot_convergence(self):
         plt.plot(self._trace_convergence, lw=1)
