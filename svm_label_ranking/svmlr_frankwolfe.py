@@ -89,6 +89,7 @@ class SVMLR_FrankWolfe(object):
                         i_row = self.nb_instances * r + i
                         i_col = self.nb_instances * l + j
                         cell_data = A[i, j]
+                        # put half value to diagonal matrix to use H + H.T
                         if i_row == i_col and r == l:
                             cell_data = 0.5 * cell_data
 
