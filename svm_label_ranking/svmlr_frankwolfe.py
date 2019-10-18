@@ -26,6 +26,7 @@ class SVMLR_FrankWolfe(object):
         H = self.calculate_H(q, A)
         # self._logger.debug("Is it semi-definite positive matrix (%s)", is_symmetric(H))
         # np.set_printoptions(linewidth=125)
+        # print(H.todense())
         # print((H + H.T).todense())
         # np.savetxt("mat_fw.txt", (H + H.T).todense(), fmt='%0.5f')
 
@@ -45,7 +46,7 @@ class SVMLR_FrankWolfe(object):
         g_t, it = 0, 0
 
         for it in range(max_iter):
-            grad_fx = x_t @ (H + H.T) + c
+            grad_fx = H @ x_t + H.T @ x_t + c
             res = solvers.lp(matrix(grad_fx, (self.d_size, 1)), G=G, h=h)
 
             if res['status'] != 'optimal':
@@ -56,7 +57,7 @@ class SVMLR_FrankWolfe(object):
             g_t = -1 * (grad_fx.dot(d_t))
             if g_t <= tol:
                 break
-            Hd_t = d_t @ (H + H.T)
+            Hd_t = H @ d_t + H.T @ d_t
             z_t = d_t.dot(Hd_t)
             step_size = min(-1 * (c.dot(d_t) + x_t.dot(Hd_t)) / z_t, 1.)
             x_t = x_t + step_size * d_t
