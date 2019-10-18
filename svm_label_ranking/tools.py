@@ -128,3 +128,14 @@ def timeit(method):
             return method(*args, **kwargs)
 
     return timed
+
+
+def is_sdp_symmetric(x):
+    def is_pos_def(x):
+        return np.all(np.linalg.eigvals(x) > 0)
+
+    def check_symmetric(x, tol=1e-8):
+        return np.allclose(x, x.T, atol=tol)
+
+    return is_pos_def(x) and check_symmetric(x)
+

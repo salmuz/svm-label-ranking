@@ -22,7 +22,8 @@ class SVMLR_QP(object):
         # 1. Calculate matrix H
         # h = self.old_calculate_H(q, data)
         h_numpy = self.calculate_H(q, A)
-        # self._logger.debug("Full matrix\n %s", h.todense())
+        # np.set_printoptions(linewidth=125)
+        # print(np.array(matrix(h_numpy)))
 
         # 2.Set the constraints for the dual problem
         e_i = int(0.5 * self.nb_labels * (self.nb_labels - 1))
@@ -55,16 +56,17 @@ class SVMLR_QP(object):
 
         self._logger.debug('Size H-matrix (%s, %s, %s)', nb_preferences,
                            self.nb_instances, nb_preferences * self.nb_instances)
-        for r in range(1, nb_preferences + 1):
-            for l in range(r, nb_preferences + 1):
+        for r in range(0, nb_preferences):
+            for l in range(r, nb_preferences):
                 self._t.tic()
                 for j in range(0, self.nb_instances):
                     _j = j if r == l else 0
                     for i in range(_j, self.nb_instances):
-                        list_pq = q[i][r - 1]
-                        list_ab = q[j][l - 1]
-                        i_row = self.nb_instances * (r - 1) + i
-                        i_col = self.nb_instances * (l - 1) + j
+                        list_pq = q[i][r]
+                        list_ab = q[j][l]
+                        # creation index (row, column)
+                        i_row = self.nb_instances * r + i
+                        i_col = self.nb_instances * l + j
                         cell_data = A[i, j]
 
                         if list_pq[0] == list_ab[0]:
@@ -107,7 +109,7 @@ class SVMLR_QP(object):
                                 col.extend((i_col, i_row))
                                 data.extend((cell_data, cell_data))
                 self._logger.debug('Time pair-wise preference label (%s, %s, %s)',
-                                   'P' + str(r), 'P' + str(l), self._t.toc())
+                                   'P' + str(r+1), 'P' + str(l+1), self._t.toc())
 
         size_H = int(nb_preferences * self.nb_instances)
         mat_h = spmatrix(data, row, col, size=(size_H, size_H))
@@ -126,7 +128,7 @@ class SVMLR_QP(object):
         G = matrix([I, -I])
         h = matrix([ell_upper, -ell_lower])
         # solvers.options["refinement"] = 2
-        # solvers.options["kktreg"] = 1e-9
+        solvers.options["kktreg"] = 1e-9
         # https://groups.google.com/forum/#!msg/cvxopt/Umcrj8UD20g/iGY4z5YgDAAJ
         return solvers.qp(P=H, q=q, G=G, h=h, kktsolver="ldl", options=solvers.options)
 

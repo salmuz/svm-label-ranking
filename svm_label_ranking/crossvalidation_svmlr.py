@@ -80,7 +80,7 @@ def cross_validation(in_path,
     logger.debug("SEED: %s", seeds)
 
     # Create a CSV file for saving results
-    file_csv = open(out_path, "w")
+    file_csv = open(out_path, "a")
     writer = csv.writer(file_csv)
 
     # Reading the training data set
@@ -99,9 +99,6 @@ def cross_validation(in_path,
             randomise=True,
             random_seed=seeds[time]
         )
-        # splits = list([])
-        # for training, testing in cvkfold:
-        #     splits.append((training, testing))
         acc_correctness_kfold = pool.map(target_func_train_test, cvkfold)
 
         # save and print save partial calculations
