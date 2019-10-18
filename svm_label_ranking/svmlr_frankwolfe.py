@@ -21,7 +21,7 @@ class SVMLR_FrankWolfe(object):
         self.DEBUG = DEBUG
 
     @timeit
-    def get_alpha(self, A, q, v, max_iter=1000, tol=1e-8):
+    def get_alpha(self, A, q, v, max_iter=400, tol=1e-8):
         # x. Calculate the large matrix des
         H = self.calculate_H(q, A)
         # self._logger.debug("Is it semi-definite positive matrix (%s)", is_symmetric(H))
