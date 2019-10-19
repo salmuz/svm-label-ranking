@@ -1,9 +1,10 @@
 from .tools import create_logger, timeit, is_symmetric
 from cvxopt import solvers, matrix, spmatrix, sparse
-from scipy.sparse import lil_matrix, csr_matrix
+from scipy.sparse import coo_matrix
 import numpy as np
 from ttictoc import TicToc
 import pylab as plt
+import array
 
 
 class SVMLR_FrankWolfe(object):
@@ -20,7 +21,6 @@ class SVMLR_FrankWolfe(object):
         self._trace_convergence = []
         self.DEBUG = DEBUG
 
-    @timeit
     def get_alpha(self, A, q, v, max_iter=400, tol=1e-8):
         # x. Calculate the large matrix des
         H = self.calculate_H(q, A)
@@ -71,11 +71,15 @@ class SVMLR_FrankWolfe(object):
                            g_t, it, it + 1 < max_iter)
         return x_t
 
-    @timeit
     def calculate_H(self, q, A):
+        rows, cols, data = array.array('i'), array.array('i'), array.array('d')
         self._logger.debug('Size H-matrix (nb_preference, nb_instances, d_size) (%s, %s, %s)',
                            self.nb_preferences, self.nb_instances, self.nb_preferences * self.nb_instances)
-        data = lil_matrix((self.d_size, self.d_size))
+
+        def append(i, j, d):
+            rows.append(i)
+            cols.append(j)
+            data.append(d)
 
         for r in range(0, self.nb_preferences):
             for l in range(r, self.nb_preferences):
@@ -94,20 +98,25 @@ class SVMLR_FrankWolfe(object):
                             cell_data = 0.5 * cell_data
 
                         if list_pq[0] == list_ab[0]:
-                            data[i_row, i_col] += cell_data
+                            append(i_row, i_col, cell_data)
 
                         elif list_pq[0] == list_ab[1]:
-                            data[i_row, i_col] -= cell_data
+                            append(i_row, i_col, -1 * cell_data)
 
                         elif list_pq[1] == list_ab[0]:
-                            data[i_row, i_col] -= cell_data
+                            append(i_row, i_col, -1 * cell_data)
 
                         elif list_pq[1] == list_ab[1]:
-                            data[i_row, i_col] += cell_data
+                            append(i_row, i_col, cell_data)
 
                 self._logger.debug('Time pair-wise preference label (%s, %s, %s)',
                                    'P' + str(r + 1), 'P' + str(l + 1), self._t.toc())
-        return data.tocsr()
+
+        rows = np.frombuffer(rows, dtype=np.int32)
+        cols = np.frombuffer(cols, dtype=np.int32)
+        data = np.frombuffer(data, dtype='d')
+        data_coo = coo_matrix((data, (rows, cols)), shape=(self.d_size, self.d_size))
+        return data_coo.tocsr()
 
     def plot_convergence(self):
         plt.plot(self._trace_convergence, lw=1)
