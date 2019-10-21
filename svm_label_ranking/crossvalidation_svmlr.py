@@ -89,8 +89,29 @@ def cross_validation(in_path,
                      skip_step_time=0,
                      is_H_shared_memory_disk=False,
                      DEBUG=False,
-                     SOLVER_LP='cvxopt',
-                     SOLVER_QP='quadratic'):
+                     SOLVER_QP='quadratic',
+                     SOLVER_LP='cvxopt'):
+    """
+    10x10 fold cross-validation procedure for experimental results
+    :param in_path: the absolute path of learning data set
+    :param out_path: the absolute path where putting results
+    :param seeds: the list of seeds to repeat experiments
+    :param n_times_repeat: Number of times to repeat the cross-validation (by default 10x10 fold-cv)
+    :param k_fold_cv: Number of cross-validation (by default 10)
+    :param nb_process: Number of process in parallel (by default 1 core)
+    :param skip_step_time: How many repetitions want to skip (n_times_repeat)
+    :param is_H_shared_memory_disk: shared memory between disk and memory for bigger matrix
+                    (frank-wolfe algorithm), however it works for single core.
+    :param DEBUG: if you want print the process of optimization problems
+    :param SOLVER_QP: 'quadratic' if we use a quadratic solver of cvxopt  or
+                   'frank-wolfe' if we use a frank-wolf algorithm
+                    (by default, if size matrix is bigger and it is impossible to use cvxopt)
+    :param SOLVER_LP: select the linear programing solver to use in the frank-wolfe algorithm
+                      (1) cvxopt: convex optimization based in Python, cvxopt.lp(.)
+                      (2) scipy: library used for scientific computing, scipy.linprog(.)
+                      (3) salmuz: own solution of linear programing, svmlr_frankwolfe.__lp_with_box_constraint(.)
+    :return: list of average of correctness (or accuracy) 
+    """
     assert os.path.exists(in_path), "Without training data, not testing"
     assert os.path.exists(out_path), "File for putting results does not exist"
     assert skip_step_time < n_times_repeat, "It is not possible skipping most n_times_repeat"

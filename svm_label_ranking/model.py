@@ -62,6 +62,10 @@ class SVMLR(object):
                         (by default, if size matrix is bigger and it is impossible to use cvxopt)
         :param is_shared_H_memory: shared memory between disk and memory for bigger matrix
                         (frank-wolfe algorithm), however it works for single core.
+        :param solver_lp: select the linear programing solver to use in the frank-wolfe algorithm
+                          (1) cvxopt: convex optimization based in Python, cvxopt.lp(.)
+                          (2) scipy: library used for scientific computing, scipy.linprog(.)
+                          (3) salmuz: own solution of linear programing, svmlr_frankwolfe.__lp_with_box_constraint(.)
         :return: list of list: for each v, a list of vector W, weights for each label
         """
         # 0. Getting the number labels and features, and others

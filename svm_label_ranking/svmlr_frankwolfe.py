@@ -195,7 +195,7 @@ class SVMLR_FrankWolfe(object):
             return __executing
         elif solver == 'scipy':
             def __executing(grad_fx):
-                res = linprog(grad_fx, bounds=(lower_bound, max_limit))
+                res = linprog(grad_fx, bounds=(lower_bound, upper_bound))
                 if res['status'] != 0:
                     self._logger.info("[Solution-not-Optimal-Not-convergence] v_default (%s)", v)
                 return np.array([v for v in res["x"]])
