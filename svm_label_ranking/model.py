@@ -1,7 +1,24 @@
-# Authors: Zhou Xingjian
-#          Yating Deng
-#          Yonatan-Carlos Carranza-Alarcon
-# License: BSD 3-Clause
+# Copyright 2019, Yonatan-Carlos Carranza-Alarcon <salmuz@gmail.com>
+# Contributors: Zhou Xingjian and Yating Deng
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 from .tools import create_logger, timeit
@@ -36,13 +53,15 @@ class SVMLR(object):
         self.DEBUG_SOLVER = DEBUG_SOLVER
         self.__solver = None
 
-    def learn(self, learn_data_set, solver='quadratic'):
+    def learn(self, learn_data_set, solver='quadratic', is_shared_H_memory=False, solver_lp='cvxopt'):
         """
         For each hyper-parameter v in v_list, calculate the label weight of each label.
         :param learn_data_set: arff data set for model training
         :param solver: 'quadratic' if we use a quadratic solver of cvxopt  or
                        'frank-wolfe' if we use a frank-wolf algorithm
                         (by default, if size matrix is bigger and it is impossible to use cvxopt)
+        :param is_shared_H_memory: shared memory between disk and memory for bigger matrix
+                        (frank-wolfe algorithm), however it works for single core.
         :return: list of list: for each v, a list of vector W, weights for each label
         """
         # 0. Getting the number labels and features, and others
@@ -65,9 +84,17 @@ class SVMLR(object):
         self.nb_preferences = int(self.nb_labels * (self.nb_labels - 1) * 0.5)
         is_not_bigger_H_matrix = (self.nb_preferences * self.nb_instances <= int(15 * 1e+3))
         if is_not_bigger_H_matrix and solver == 'quadratic':
-            self.__solver = SVMLR_QP(self.nb_labels, self.nb_instances, self.DEBUG, self.DEBUG_SOLVER)
+            self.__solver = SVMLR_QP(nb_labels=self.nb_labels,
+                                     nb_instances=self.nb_instances,
+                                     DEBUG=self.DEBUG,
+                                     DEBUG_SOLVER=self.DEBUG_SOLVER)
         elif solver == 'frank-wolfe' or (not is_not_bigger_H_matrix and solver == 'quadratic'):
-            self.__solver = SVMLR_FrankWolfe(self.nb_labels, self.nb_instances, self.DEBUG, self.DEBUG_SOLVER)
+            self.__solver = SVMLR_FrankWolfe(nb_labels=self.nb_labels,
+                                             nb_instances=self.nb_instances,
+                                             DEBUG=self.DEBUG,
+                                             DEBUG_SOLVER=self.DEBUG_SOLVER,
+                                             is_shared_H_memory=is_shared_H_memory,
+                                             SOLVER_LP=solver_lp)
         else:
             raise Exception('Solver has not implemented yet ')
 

@@ -1,5 +1,23 @@
-# Authors: Yonatan-Carlos Carranza-Alarcon
-# License: BSD 3-Clause
+# Copyright 2019, Yonatan-Carlos Carranza-Alarcon <salmuz@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
 import csv
@@ -18,13 +36,19 @@ import multiprocessing
 from functools import partial
 
 
-def __computing_training_testing_kfold(DEBUG, train_test_data):
+def __computing_training_testing_kfold(DEBUG, is_parallel, SOLVER_QP, SOLVER_LP, train_test_data):
     training, testing = train_test_data
-    pid = multiprocessing.current_process().name
+    if is_parallel:
+        pid = multiprocessing.current_process().name
+    else:
+        pid = 'ForkPoolWorker-0'
 
     # 1. Loading model with training data set to compute alpha values
     model_svmlr = SVMLR(DEBUG=DEBUG)
-    model_svmlr.learn(learn_data_set=training)
+    model_svmlr.learn(learn_data_set=training,
+                      is_shared_H_memory=not is_parallel,
+                      solver=SOLVER_QP,
+                      solver_lp=SOLVER_LP)
 
     def _pinfo(message, kwargs):
         print("[" + pid + "][" + time.strftime('%x %X %Z') + "]", "-", message % kwargs, flush=True)
@@ -63,7 +87,10 @@ def cross_validation(in_path,
                      k_fold_cv=10,
                      nb_process=1,
                      skip_step_time=0,
-                     DEBUG=False):
+                     is_H_shared_memory_disk=False,
+                     DEBUG=False,
+                     SOLVER_LP='cvxopt',
+                     SOLVER_QP='quadratic'):
     assert os.path.exists(in_path), "Without training data, not testing"
     assert os.path.exists(out_path), "File for putting results does not exist"
     assert skip_step_time < n_times_repeat, "It is not possible skipping most n_times_repeat"
@@ -94,8 +121,16 @@ def cross_validation(in_path,
     avg_correctness = np.zeros(n_times_repeat)
 
     # multiprocessing pool parallel with nb_process
-    pool = multiprocessing.Pool(processes=nb_process)
-    target_func_train_test = partial(__computing_training_testing_kfold, DEBUG)
+    # if is_H_shared_memory_disk is True, so multiprocessing is disabled
+    pool, target_func_train_test = None, None
+    is_multiprocessing = (not is_H_shared_memory_disk and nb_process > 1)
+    if is_multiprocessing:
+        pool = multiprocessing.Pool(processes=nb_process)
+        target_func_train_test = partial(__computing_training_testing_kfold,
+                                         DEBUG,
+                                         SOLVER_QP,
+                                         SOLVER_LP,
+                                         is_multiprocessing)
 
     for time in range(skip_step_time, n_times_repeat):
         cvkfold = k_fold_cross_validation(
@@ -110,7 +145,17 @@ def cross_validation(in_path,
             seeds[time],
             nb_process,
         )
-        acc_correctness_kfold = pool.map(target_func_train_test, cvkfold)
+
+        acc_correctness_kfold = []
+        if is_multiprocessing:
+            acc_correctness_kfold = pool.map(target_func_train_test, cvkfold)
+        else:
+            for training, testing in cvkfold:
+                acc_correctness_kfold.append(__computing_training_testing_kfold(DEBUG,
+                                                                                is_multiprocessing,
+                                                                                SOLVER_QP,
+                                                                                SOLVER_LP,
+                                                                                (training, testing)))
 
         # save and print save partial calculations
         for kfold_time in range(k_fold_cv):
