@@ -53,7 +53,12 @@ class SVMLR(object):
         self.DEBUG_SOLVER = DEBUG_SOLVER
         self.__solver = None
 
-    def learn(self, learn_data_set, solver='quadratic', is_shared_H_memory=False, solver_lp='cvxopt'):
+    def learn(self,
+              learn_data_set,
+              solver='quadratic',
+              is_shared_H_memory=False,
+              solver_lp='cvxopt',
+              start_idx_label_disk=None):
         """
         For each hyper-parameter v in v_list, calculate the label weight of each label.
         :param learn_data_set: arff data set for model training
@@ -66,6 +71,8 @@ class SVMLR(object):
                           (1) cvxopt: convex optimization based in Python, cvxopt.lp(.)
                           (2) scipy: library used for scientific computing, scipy.linprog(.)
                           (3) salmuz: own solution of linear programing, svmlr_frankwolfe.__lp_with_box_constraint(.)
+        :param start_idx_label_disk: from which label we save in hard disk (by default half-half)
+                                     (@improve to calculate the free memory before to save in disk)
         :return: list of list: for each v, a list of vector W, weights for each label
         """
         # 0. Getting the number labels and features, and others
@@ -98,7 +105,8 @@ class SVMLR(object):
                                              DEBUG=self.DEBUG,
                                              DEBUG_SOLVER=self.DEBUG_SOLVER,
                                              is_shared_H_memory=is_shared_H_memory,
-                                             SOLVER_LP=solver_lp)
+                                             SOLVER_LP=solver_lp,
+                                             startup_idx_save_disk=start_idx_label_disk)
         else:
             raise Exception('Solver has not implemented yet ')
 

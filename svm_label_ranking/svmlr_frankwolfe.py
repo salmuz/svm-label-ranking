@@ -39,7 +39,8 @@ class SVMLR_FrankWolfe(object):
                  DEBUG=False,
                  DEBUG_SOLVER=False,
                  is_shared_H_memory=False,
-                 SOLVER_LP='cvxopt'):
+                 SOLVER_LP='cvxopt',
+                 startup_idx_save_disk=None):
         self._logger = create_logger("__SVMLR_FrankWolfe", DEBUG)
         self.nb_labels = nb_labels
         self.nb_instances = nb_instances
@@ -49,12 +50,14 @@ class SVMLR_FrankWolfe(object):
         self._t.set_print_toc(False)
         solvers.options["show_progress"] = DEBUG_SOLVER
         self._trace_convergence = []
-        self.is_shared_H_memory = is_shared_H_memory;
+        self.is_shared_H_memory = is_shared_H_memory
         self.DEBUG = DEBUG
         # variables to create matrix H in parallel and shared memory and disk
         self.name_matrix_H = "sparse_H_" + str(int(time.time()))
         self.in_temp_path = "/tmp/"
-        self.startup_idx_save_disk = 2
+        self.startup_idx_save_disk = int(self.nb_preferences * 0.5) \
+            if startup_idx_save_disk is None \
+            else startup_idx_save_disk
         self.SOLVER_LP_DEFAULT = SOLVER_LP
 
     def get_alpha(self, A, q, v, max_iter=400, tol=1e-8):
@@ -199,6 +202,7 @@ class SVMLR_FrankWolfe(object):
                 if res['status'] != 0:
                     self._logger.info("[Solution-not-Optimal-Not-convergence] v_default (%s)", v)
                 return np.array([v for v in res["x"]])
+
             return __executing
         elif solver == 'salmuz':
             def __lp_with_box_constraint(c):
@@ -208,6 +212,7 @@ class SVMLR_FrankWolfe(object):
                     return lp_solution_optimal
                 lp_solution_optimal[idx_negative_value] = upper_bound
                 return lp_solution_optimal
+
             return __lp_with_box_constraint
         else:
             raise Exception('Solver has not implemented yet')

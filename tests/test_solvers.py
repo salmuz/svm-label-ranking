@@ -92,25 +92,44 @@ def __brute_force_search(query, lower, upper, H, d):
     forRecursive(lower, upper, 0, d, np.array([]))
 
 
-Q = np.array([[19.42941344, -12.9899322, -5.1907171, -0.25782677],
-              [-12.9899322, 15.97805787, 1.87087712, -6.72150886],
-              [-5.1907171, 1.87087712, 36.99333345, -16.21139038],
-              [-0.25782677, -6.72150886, -16.21139038, 103.0762929]])
+def testing_qd_vs_frank_wolfe_vs_brute_force():
+    Q = np.array([[19.42941344, -12.9899322, -5.1907171, -0.25782677],
+                  [-12.9899322, 15.97805787, 1.87087712, -6.72150886],
+                  [-5.1907171, 1.87087712, 36.99333345, -16.21139038],
+                  [-0.25782677, -6.72150886, -16.21139038, 103.0762929]])
 
-q = -1 * np.ones(4)  # (375) np.array([-45.3553788, 26.52058282, -99.63769322, -61.59361441])
-mean_lower = np.zeros(4)  # (one iteration) np.array([4.94791667, 3.36875, 1.41666667, 0.19375])
-mean_upper = np.array([5.04375, 3.46458333, 1.5125, 0.28958333])
+    q = -1 * np.ones(4)  # (375) np.array([-45.3553788, 26.52058282, -99.63769322, -61.59361441])
+    mean_lower = np.zeros(4)  # (one iteration) np.array([4.94791667, 3.36875, 1.41666667, 0.19375])
+    mean_upper = np.array([5.04375, 3.46458333, 1.5125, 0.28958333])
 
-__brute_force_search(q, mean_lower, mean_upper, Q, 4)
-print(cost_fx_obj.index(min(cost_fx_obj)))
-rs = min_convex_qp(Q, q, mean_lower, mean_upper, 4)
-print([x for x in rs['x']])
-print(qd_frank_wolf(q, mean_lower, mean_upper, Q, 4))
+    __brute_force_search(q, mean_lower, mean_upper, Q, 4)
+    print(cost_fx_obj.index(min(cost_fx_obj)))
+    rs = min_convex_qp(Q, q, mean_lower, mean_upper, 4)
+    print([x for x in rs['x']])
+    print(qd_frank_wolf(q, mean_lower, mean_upper, Q, 4))
 
-plt.plot(trace, lw=1)
-plt.yscale('log')
-plt.xlabel('Number of iterations')
-plt.ylabel('Relative FW gap')
-plt.title('Convergence QP')
-plt.grid()
-plt.show()
+    plt.plot(trace, lw=1)
+    plt.yscale('log')
+    plt.xlabel('Number of iterations')
+    plt.ylabel('Relative FW gap')
+    plt.title('Convergence QP')
+    plt.grid()
+    plt.show()
+
+
+def lp_with_box_constraint(c, upper_bound):
+    lp_solution_optimal = np.zeros(c.shape)
+    idx_negative_value = np.where(c < 0)[0]
+    if len(idx_negative_value) == 0:
+        return lp_solution_optimal
+    lp_solution_optimal[idx_negative_value] = upper_bound
+    return lp_solution_optimal
+
+
+def testing_ownlp_vs_linprog():
+    from scipy.optimize import linprog
+    res = linprog(to_optimizer, bounds=(minimum, maximum))
+    # it miss to finish testing
+
+
+testing_qd_vs_frank_wolfe_vs_brute_force()
