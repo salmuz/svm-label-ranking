@@ -1,8 +1,12 @@
 svm-label-ranking
 ===============================
 
-version number: 0.0.1
-author: svm-label-ranking
+This implementation is inspired of papers: 
+
+* WestonJ ElisseeffA, ‘Kernel methods for multi-labelled classification and categorical regression problems’, Advances in Neural Information Processing Systems, Cambridge, MA: MITPress, 681, 687, (2002).    
+* Shankar Vembu and Thomas Ga ̈rtner, ‘Label ranking algorithms: A sur- vey’, in Preference learning, 45–64, Springer, (2010).
+
+Version number: 0.0.1
 
 Overview
 --------
