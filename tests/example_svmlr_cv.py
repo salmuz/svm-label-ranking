@@ -11,7 +11,7 @@ print("Avg. correctness IRIS with 1 process parallel execution:", avg_correctnes
 # Call cross-validation with three parallel process
 in_path = "iris_dense.xarff"
 out_path = "results_output.csv"
-avg_correctness = cross_validation(in_path, out_path, nb_process=3, DEBUG=True, seeds=seeds)
+avg_correctness = cross_validation(in_path, out_path, nb_process=3, DEBUG=True)
 print("Avg. correctness IRIS with 3 process parallel execution:", avg_correctness, flush=True)
 
 # Call cross-validation with shared memory and disk for saving H matrix

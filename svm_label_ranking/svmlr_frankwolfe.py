@@ -23,7 +23,7 @@ from .tools import create_logger, timeit, is_symmetric
 from .create_H_matrix_disk_memory import sparse_matrix_H_shared_memory_and_disk, init_shared_H, dot_xt_Hr_preference, \
     dot_xt_Hr_from_disk_hard
 from cvxopt import solvers, matrix, spmatrix, sparse
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, load_npz
 from scipy.optimize import linprog
 import numpy as np
 from ttictoc import TicToc
