@@ -21,7 +21,7 @@
 
 from .tools import create_logger, timeit, is_symmetric
 from .create_H_matrix_disk_memory import sparse_matrix_H_shared_memory_and_disk, init_shared_H, dot_xt_Hr_preference, \
-    dot_xt_Hr_from_disk_hard, release_memory_shared_H
+    dot_xt_Hr_from_disk_hard
 from cvxopt import solvers, matrix, spmatrix, sparse
 from scipy.sparse import coo_matrix
 from scipy.optimize import linprog
@@ -112,8 +112,6 @@ class SVMLR_FrankWolfe(object):
 
         self._logger.debug("Cost-Fx-gradient and #iters (grad_fx, iters, is_optimal) (%s, %s, %s)",
                            g_t, it, it + 1 < max_iter)
-        self.pool.close()
-        release_memory_shared_H()
         return x_t
 
     def compute_H_dot_x_grad(self, x_t, H, add_vec=None):
@@ -159,16 +157,18 @@ class SVMLR_FrankWolfe(object):
             return self.all_sparse_symmetric_H(q, A)
 
     def all_sparse_symmetric_H(self, q, A):
-        rows, cols, data = array.array('i'), array.array('i'), array.array('d')
         self._logger.debug('Size H-matrix (nb_preference, nb_instances, d_size) (%s, %s, %s)',
                            self.nb_preferences, self.nb_instances, self.nb_preferences * self.nb_instances)
 
-        def append(i, j, d):
-            rows.append(i)
-            cols.append(j)
-            data.append(d)
-
+        data_coo = None
         for r in range(0, self.nb_preferences):
+            rows, cols, data = array.array('i'), array.array('i'), array.array('d')
+
+            def append(i, j, d):
+                rows.append(i)
+                cols.append(j)
+                data.append(d)
+
             for l in range(r, self.nb_preferences):
                 self._t.tic()
                 for i in range(0, self.nb_instances):
@@ -198,11 +198,15 @@ class SVMLR_FrankWolfe(object):
 
                 self._logger.debug('Time pair-wise preference label (%s, %s, %s)',
                                    'P' + str(r + 1), 'P' + str(l + 1), self._t.toc())
+            if data_coo is not None:
+                data.extend(data_coo.data)
+                rows.extend(data_coo.row)
+                cols.extend(data_coo.col)
+            rows = np.frombuffer(rows, dtype=np.int32)
+            cols = np.frombuffer(cols, dtype=np.int32)
+            data = np.frombuffer(data, dtype='d')
+            data_coo = coo_matrix((data, (rows, cols)), shape=(self.d_size, self.d_size))
 
-        rows = np.frombuffer(rows, dtype=np.int32)
-        cols = np.frombuffer(cols, dtype=np.int32)
-        data = np.frombuffer(data, dtype='d')
-        data_coo = coo_matrix((data, (rows, cols)), shape=(self.d_size, self.d_size))
         return data_coo.tocsr()
 
     def __wrapper_lp_solvers(self, lower_bound, upper_bound, solver='cvxopt'):
@@ -252,5 +256,9 @@ class SVMLR_FrankWolfe(object):
 
     def __del__(self):
         # remove temporal files where it save the sparse matrix
-        for r in range(self.startup_idx_save_disk - 1, self.nb_preferences):
-            os.remove(self.in_temp_path + self.name_matrix_H + "_" + str(r + 1) + ".npz")
+        if self.is_shared_H_memory:
+            for r in range(self.startup_idx_save_disk - 1, self.nb_preferences):
+                os.remove(self.in_temp_path + self.name_matrix_H + "_" + str(r + 1) + ".npz")
+        # release pool process after computations
+        if self.pool is not None:
+            self.pool.close()

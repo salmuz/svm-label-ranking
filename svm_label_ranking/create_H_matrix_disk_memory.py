@@ -27,13 +27,6 @@ import multiprocessing
 from functools import partial
 import time
 
-_share_H = dict({})
-
-
-def release_memory_shared_H():
-    global _share_H
-    del _share_H
-
 
 # global variable to do multiprocessing multiplication if need
 def init_shared_H(value_H):
