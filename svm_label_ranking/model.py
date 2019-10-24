@@ -56,8 +56,8 @@ class SVMLR(object):
     def learn(self,
               learn_data_set,
               solver='quadratic',
-              is_shared_H_memory=False,
               solver_lp='cvxopt',
+              is_shared_H_memory=False,
               start_idx_label_disk=None):
         """
         For each hyper-parameter v in v_list, calculate the label weight of each label.
@@ -65,14 +65,13 @@ class SVMLR(object):
         :param solver: 'quadratic' if we use a quadratic solver of cvxopt  or
                        'frank-wolfe' if we use a frank-wolf algorithm
                         (by default, if size matrix is bigger and it is impossible to use cvxopt)
-        :param is_shared_H_memory: shared memory between disk and memory for bigger matrix
-                        (frank-wolfe algorithm), however it works for single core.
         :param solver_lp: select the linear programing solver to use in the frank-wolfe algorithm
                           (1) cvxopt: convex optimization based in Python, cvxopt.lp(.)
                           (2) scipy: library used for scientific computing, scipy.linprog(.)
                           (3) salmuz: own solution of linear programing, svmlr_frankwolfe.__lp_with_box_constraint(.)
+        :param is_shared_H_memory: shared memory between disk and memory for bigger matrix
+                        (frank-wolfe algorithm), now it works multi-process but it is fixed single process.
         :param start_idx_label_disk: from which label we save in hard disk (by default half-half)
-                                     (@improve to calculate the free memory before to save in disk)
         :return: list of list: for each v, a list of vector W, weights for each label
         """
         # 0. Getting the number labels and features, and others

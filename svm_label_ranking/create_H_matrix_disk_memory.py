@@ -19,13 +19,36 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-from scipy.sparse import coo_matrix, save_npz
+from scipy.sparse import coo_matrix, save_npz, load_npz
 import array
 from ttictoc import TicToc
 import numpy as np
 import multiprocessing
 from functools import partial
 import time
+
+_share_H = dict({})
+
+
+def release_memory_shared_H():
+    global _share_H
+    del _share_H
+
+
+# global variable to do multiprocessing multiplication if need
+def init_shared_H(value_H):
+    global _share_H
+    _share_H = value_H
+
+
+def dot_xt_Hr_preference(x_t, r):
+    return _share_H[r] @ x_t + _share_H[r].T @ x_t
+
+
+def dot_xt_Hr_from_disk_hard(x_t, name_matrix_H, in_temp_path, r):
+    file_name = in_temp_path + name_matrix_H + "_" + str(r + 1) + ".npz"
+    H_disk = load_npz(file_name)
+    return H_disk @ x_t + H_disk.T @ x_t
 
 
 def __parallel_create_H_r_l(q, A, r, l, iis):
@@ -75,7 +98,7 @@ def sparse_matrix_H_shared_memory_and_disk(q, A,
                                            name,
                                            startup_idx_save_disk,
                                            in_temp_path,
-                                           nb_process=5):
+                                           nb_process=4):
     _t = TicToc("sparse_matrix_H_shared_memory_and_disk")
     _t.set_print_toc(False)
 
@@ -111,5 +134,5 @@ def sparse_matrix_H_shared_memory_and_disk(q, A,
         else:
             print("Saving pair-wise preference label (%s)" % ('P' + str(r + 1)), flush=True)
             save_npz(file=in_temp_path + name + "_" + str(r + 1) + ".npz", matrix=data_coo.tocsr())
-
+    pool.close()
     return H

@@ -20,15 +20,19 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from .tools import create_logger, timeit, is_symmetric
-from .create_H_matrix_disk_memory import sparse_matrix_H_shared_memory_and_disk
+from .create_H_matrix_disk_memory import sparse_matrix_H_shared_memory_and_disk, init_shared_H, dot_xt_Hr_preference, \
+    dot_xt_Hr_from_disk_hard, release_memory_shared_H
 from cvxopt import solvers, matrix, spmatrix, sparse
-from scipy.sparse import coo_matrix, load_npz
+from scipy.sparse import coo_matrix
 from scipy.optimize import linprog
 import numpy as np
 from ttictoc import TicToc
 import pylab as plt
 import array
 import time
+import os
+import multiprocessing
+from functools import partial
 
 
 class SVMLR_FrankWolfe(object):
@@ -40,7 +44,8 @@ class SVMLR_FrankWolfe(object):
                  DEBUG_SOLVER=False,
                  is_shared_H_memory=False,
                  SOLVER_LP='cvxopt',
-                 startup_idx_save_disk=None):
+                 startup_idx_save_disk=None,
+                 process_dot_Hxt=1):
         self._logger = create_logger("__SVMLR_FrankWolfe", DEBUG)
         self.nb_labels = nb_labels
         self.nb_instances = nb_instances
@@ -55,49 +60,51 @@ class SVMLR_FrankWolfe(object):
         # variables to create matrix H in parallel and shared memory and disk
         self.name_matrix_H = "sparse_H_" + str(int(time.time()))
         self.in_temp_path = "/tmp/"
-        self.startup_idx_save_disk = int(self.nb_preferences * 0.5) \
+        self.startup_idx_save_disk = int(self.nb_preferences * 0.5 + 1) \
             if startup_idx_save_disk is None \
             else startup_idx_save_disk
         self.SOLVER_LP_DEFAULT = SOLVER_LP
+        self.pool = None
+        self.process_dot_Hxt = process_dot_Hxt
 
-    def get_alpha(self, A, q, v, max_iter=400, tol=1e-8):
-        # x. Calculate the large matrix des
+    def get_alpha(self, A, q, v, max_iter=100, tol=1e-8):
+        # 0. calculate the large matrix des
+        # it is shared memory, we use the H global variable to speed to multiplication bigger matrix
         H = self.calculate_H(q, A)
         # self._logger.debug("Is it semi-definite positive matrix (%s)", is_symmetric(H))
-        # np.set_printoptions(linewidth=125)
-        # print(H.todense())
-        # print((H + H.T).todense())
-        # np.savetxt("mat_fw.txt", (H + H.T).todense(), fmt='%0.5f')
+        if self.is_shared_H_memory:
+            self.pool = multiprocessing.Pool(processes=self.process_dot_Hxt,
+                                             initializer=init_shared_H,
+                                             initargs=(H,))
 
-        # 0. Set the constraints for the dual problem
+        # 1. Set the constraints for the dual problem
         e_i = self.nb_preferences
         max_limit = float(v / e_i)
 
-        # 1. Call wrapper linear programing solver
+        # 2. Call wrapper linear programing solver
         lp_programing = self.__wrapper_lp_solvers(0, max_limit, solver=self.SOLVER_LP_DEFAULT)
 
-        # 2. Frank-Wolf algorithm
+        # 3. Frank-Wolf algorithm
         x_t = np.zeros(self.d_size)  # init value for algorithm frank-wolfe
         c = np.repeat(-1.0, self.d_size)
         g_t, it = 0, 0
 
         for it in range(max_iter):
-            if self.is_shared_H_memory:
-                grad_fx = self.compute_H_dot_x(x_t, H, c)
-            else:
-                grad_fx = H @ x_t + H.T @ x_t + c
+            # Step 0: compute gradient of the sparse matrix
+            grad_fx = self.compute_H_dot_x_grad(x_t, H, c)
 
+            # Step 1: direction-finding sub-problem
             s_t = lp_programing(grad_fx)
             d_t = s_t - x_t
             g_t = -1 * (grad_fx.dot(d_t))
+            # verify if gap is below tolerance
             if g_t <= tol:
                 break
-            if self.is_shared_H_memory:
-                Hd_t = self.compute_H_dot_x(d_t, H)
-            else:
-                Hd_t = H @ d_t + H.T @ d_t
+            # Step 2: set step size by line search
+            Hd_t = self.compute_H_dot_x_grad(d_t, H)
             z_t = d_t.dot(Hd_t)
             step_size = min(-1 * (c.dot(d_t) + x_t.dot(Hd_t)) / z_t, 1.)
+            # Step 3: update current value
             x_t = x_t + step_size * d_t
             if self.DEBUG:
                 self._trace_convergence.append(g_t)
@@ -105,23 +112,40 @@ class SVMLR_FrankWolfe(object):
 
         self._logger.debug("Cost-Fx-gradient and #iters (grad_fx, iters, is_optimal) (%s, %s, %s)",
                            g_t, it, it + 1 < max_iter)
+        self.pool.close()
+        release_memory_shared_H()
         return x_t
 
-    def compute_H_dot_x(self, x_t, H, add_vec=None):
-        x_res = np.zeros(self.d_size)
+    def compute_H_dot_x_grad(self, x_t, H, add_vec=None):
+        # Gradient evaluate in current value x_t
+        grad_fx = np.zeros(self.d_size)
+        if self.is_shared_H_memory:  # multiprocessing inner product space
+            if self.process_dot_Hxt > 1:
+                # multiprocessing dot calculation
+                fnc_target = partial(dot_xt_Hr_preference, x_t)
+                res = self.pool.map(fnc_target, range(0, self.startup_idx_save_disk - 1))
+                for x_memory in res:
+                    grad_fx = grad_fx + x_memory
 
-        for r in range(0, self.startup_idx_save_disk - 1):
-            x_res = x_res + H[r] @ x_t + H[r].T @ x_t
+                func_target = partial(dot_xt_Hr_from_disk_hard, x_t, self.name_matrix_H, self.in_temp_path)
+                res = self.pool.map(func_target, range(self.startup_idx_save_disk - 1, self.nb_preferences))
+                for x_r in res:
+                    grad_fx = grad_fx + x_r
+            else:  # singleton processing
+                for r in range(0, self.startup_idx_save_disk - 1):
+                    grad_fx = grad_fx + H[r] @ x_t + H[r].T @ x_t
 
-        for r in range(self.startup_idx_save_disk - 1, self.nb_preferences):
-            H_disk = load_npz(self.in_temp_path + self.name_matrix_H + "_" + str(r + 1) + ".npz")
-            x_disk = H_disk @ x_t + H_disk.T @ x_t
-            x_res = x_res + x_disk
+                for r in range(self.startup_idx_save_disk - 1, self.nb_preferences):
+                    H_disk = load_npz(self.in_temp_path + self.name_matrix_H + "_" + str(r + 1) + ".npz")
+                    x_disk = H_disk @ x_t + H_disk.T @ x_t
+                    grad_fx = grad_fx + x_disk
+        else:
+            grad_fx = H @ x_t + H.T @ x_t
 
         if add_vec is not None:
-            x_res = x_res + add_vec
+            grad_fx = grad_fx + add_vec
 
-        return x_res
+        return grad_fx
 
     def calculate_H(self, q, A):
         if self.is_shared_H_memory:
@@ -225,3 +249,8 @@ class SVMLR_FrankWolfe(object):
         plt.title('Convergence QP')
         plt.grid()
         plt.show()
+
+    def __del__(self):
+        # remove temporal files where it save the sparse matrix
+        for r in range(self.startup_idx_save_disk - 1, self.nb_preferences):
+            os.remove(self.in_temp_path + self.name_matrix_H + "_" + str(r + 1) + ".npz")

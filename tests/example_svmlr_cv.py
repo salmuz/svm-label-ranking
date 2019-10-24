@@ -18,7 +18,7 @@ print("Avg. correctness IRIS with 3 process parallel execution:", avg_correctnes
 in_path = "iris_dense.xarff"
 out_path = "results_output.csv"
 avg_correctness = cross_validation(in_path, out_path, DEBUG=True, is_H_shared_memory_disk=True,
-                                   SOLVER_LP="salmuz", SOLVER_QP="frank-wolfe")
+                                   SOLVER_LP="salmuz", SOLVER_QP="frank-wolfe", start_idx_label_disk=2)
 print("Avg. correctness IRIS with shared-memory-disk and frank-wolfe and own linear programming execution:",
       avg_correctness, flush=True)
 

@@ -41,6 +41,7 @@ def __computing_training_testing_kfold(DEBUG,
                                        SOLVER_LP,
                                        is_parallel,
                                        is_H_shared_memory_disk,
+                                       start_idx_label_disk,
                                        train_test_data):
     training, testing = train_test_data
     if is_parallel:
@@ -51,9 +52,10 @@ def __computing_training_testing_kfold(DEBUG,
     # 1. Loading model with training data set to compute alpha values
     model_svmlr = SVMLR(DEBUG=DEBUG)
     model_svmlr.learn(learn_data_set=training,
-                      is_shared_H_memory=is_H_shared_memory_disk,
                       solver=SOLVER_QP,
-                      solver_lp=SOLVER_LP)
+                      solver_lp=SOLVER_LP,
+                      is_shared_H_memory=is_H_shared_memory_disk,
+                      start_idx_label_disk=start_idx_label_disk)
 
     def _pinfo(message, kwargs):
         print("[" + pid + "][" + time.strftime('%x %X %Z') + "]", "-", message % kwargs, flush=True)
@@ -93,6 +95,7 @@ def cross_validation(in_path,
                      nb_process=1,
                      skip_step_time=0,
                      is_H_shared_memory_disk=False,
+                     start_idx_label_disk=None,
                      DEBUG=False,
                      SOLVER_QP='quadratic',
                      SOLVER_LP='cvxopt'):
@@ -107,6 +110,7 @@ def cross_validation(in_path,
     :param skip_step_time: How many repetitions want to skip (n_times_repeat)
     :param is_H_shared_memory_disk: shared memory between disk and memory for bigger matrix
                     (frank-wolfe algorithm), however it works for single core.
+    :param start_idx_label_disk: from which label we save in hard disk (by default half-half)
     :param DEBUG: if you want print the process of optimization problems
     :param SOLVER_QP: 'quadratic' if we use a quadratic solver of cvxopt  or
                    'frank-wolfe' if we use a frank-wolf algorithm
@@ -157,7 +161,8 @@ def cross_validation(in_path,
                                          SOLVER_QP,
                                          SOLVER_LP,
                                          is_multiprocessing,
-                                         is_H_shared_memory_disk)
+                                         is_H_shared_memory_disk,
+                                         start_idx_label_disk)
 
     for time in range(skip_step_time, n_times_repeat):
         cvkfold = k_fold_cross_validation(
@@ -183,6 +188,7 @@ def cross_validation(in_path,
                                                                                 SOLVER_LP,
                                                                                 is_multiprocessing,
                                                                                 is_H_shared_memory_disk,
+                                                                                start_idx_label_disk,
                                                                                 (training, testing)))
 
         # save and print save partial calculations
