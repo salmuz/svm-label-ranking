@@ -36,7 +36,12 @@ import multiprocessing
 from functools import partial
 
 
-def __computing_training_testing_kfold(DEBUG, SOLVER_QP, SOLVER_LP, is_parallel, train_test_data):
+def __computing_training_testing_kfold(DEBUG,
+                                       SOLVER_QP,
+                                       SOLVER_LP,
+                                       is_parallel,
+                                       is_H_shared_memory_disk,
+                                       train_test_data):
     training, testing = train_test_data
     if is_parallel:
         pid = multiprocessing.current_process().name
@@ -46,7 +51,7 @@ def __computing_training_testing_kfold(DEBUG, SOLVER_QP, SOLVER_LP, is_parallel,
     # 1. Loading model with training data set to compute alpha values
     model_svmlr = SVMLR(DEBUG=DEBUG)
     model_svmlr.learn(learn_data_set=training,
-                      is_shared_H_memory=not is_parallel,
+                      is_shared_H_memory=is_H_shared_memory_disk,
                       solver=SOLVER_QP,
                       solver_lp=SOLVER_LP)
 
@@ -151,7 +156,8 @@ def cross_validation(in_path,
                                          DEBUG,
                                          SOLVER_QP,
                                          SOLVER_LP,
-                                         is_multiprocessing)
+                                         is_multiprocessing,
+                                         is_H_shared_memory_disk)
 
     for time in range(skip_step_time, n_times_repeat):
         cvkfold = k_fold_cross_validation(
@@ -176,6 +182,7 @@ def cross_validation(in_path,
                                                                                 SOLVER_QP,
                                                                                 SOLVER_LP,
                                                                                 is_multiprocessing,
+                                                                                is_H_shared_memory_disk,
                                                                                 (training, testing)))
 
         # save and print save partial calculations
