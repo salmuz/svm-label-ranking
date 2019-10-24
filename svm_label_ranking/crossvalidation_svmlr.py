@@ -36,7 +36,7 @@ import multiprocessing
 from functools import partial
 
 
-def __computing_training_testing_kfold(DEBUG, is_parallel, SOLVER_QP, SOLVER_LP, train_test_data):
+def __computing_training_testing_kfold(DEBUG, SOLVER_QP, SOLVER_LP, is_parallel, train_test_data):
     training, testing = train_test_data
     if is_parallel:
         pid = multiprocessing.current_process().name
@@ -173,9 +173,9 @@ def cross_validation(in_path,
         else:
             for training, testing in cvkfold:
                 acc_correctness_kfold.append(__computing_training_testing_kfold(DEBUG,
-                                                                                is_multiprocessing,
                                                                                 SOLVER_QP,
                                                                                 SOLVER_LP,
+                                                                                is_multiprocessing,
                                                                                 (training, testing)))
 
         # save and print save partial calculations
