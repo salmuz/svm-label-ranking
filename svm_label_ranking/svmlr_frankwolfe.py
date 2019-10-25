@@ -20,8 +20,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from .tools import create_logger, timeit, is_symmetric
-from .create_H_matrix_disk_memory import sparse_matrix_H_shared_memory_and_disk, init_shared_H, dot_xt_Hr_preference, \
-    dot_xt_Hr_from_disk_hard
+from .create_H_matrix_disk_memory import sparse_matrix_H_shared_memory_and_disk, dot_xt_Hr_from_disk_hard
 from cvxopt import solvers, matrix, spmatrix, sparse
 from scipy.sparse import coo_matrix, load_npz
 from scipy.optimize import linprog
@@ -64,18 +63,14 @@ class SVMLR_FrankWolfe(object):
             if startup_idx_save_disk is None \
             else startup_idx_save_disk
         self.SOLVER_LP_DEFAULT = SOLVER_LP
-        self.pool = None
         self.process_dot_Hxt = process_dot_Hxt
+        self.pool = self.pool = multiprocessing.Pool(processes=self.process_dot_Hxt)
 
     def get_alpha(self, A, q, v, max_iter=100, tol=1e-8):
         # 0. calculate the large matrix des
         # it is shared memory, we use the H global variable to speed to multiplication bigger matrix
         H = self.calculate_H(q, A)
         # self._logger.debug("Is it semi-definite positive matrix (%s)", is_symmetric(H))
-        if self.is_shared_H_memory:
-            self.pool = multiprocessing.Pool(processes=self.process_dot_Hxt,
-                                             initializer=init_shared_H,
-                                             initargs=(H,))
 
         # 1. Set the constraints for the dual problem
         e_i = self.nb_preferences
@@ -119,11 +114,16 @@ class SVMLR_FrankWolfe(object):
         grad_fx = np.zeros(self.d_size)
         if self.is_shared_H_memory:  # multiprocessing inner product space
             if self.process_dot_Hxt > 1:
+                # singleton processing
+                for r in range(0, self.startup_idx_save_disk - 1):
+                    grad_fx = grad_fx + H[r] @ x_t + H[r].T @ x_t
+
                 # multiprocessing dot calculation
-                fnc_target = partial(dot_xt_Hr_preference, x_t)
-                res = self.pool.map(fnc_target, range(0, self.startup_idx_save_disk - 1))
-                for x_memory in res:
-                    grad_fx = grad_fx + x_memory
+                # It's not possible because it does not share memory very well (until python-3.8)
+                # fnc_target = partial(dot_xt_Hr_preference, x_t)
+                # res = self.pool.map(fnc_target, range(0, self.startup_idx_save_disk - 1))
+                # for x_memory in res:
+                #     grad_fx = grad_fx + x_memory
 
                 func_target = partial(dot_xt_Hr_from_disk_hard, x_t, self.name_matrix_H, self.in_temp_path)
                 res = self.pool.map(func_target, range(self.startup_idx_save_disk - 1, self.nb_preferences))

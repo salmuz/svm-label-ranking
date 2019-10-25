@@ -28,14 +28,16 @@ from functools import partial
 import time
 
 
+# It's not possible to share memory until version 3.8 python (for bigger space memory)
 # global variable to do multiprocessing multiplication if need
-def init_shared_H(value_H):
-    global _share_H
-    _share_H = value_H
-
-
-def dot_xt_Hr_preference(x_t, r):
-    return _share_H[r] @ x_t + _share_H[r].T @ x_t
+# def init_shared_H(value_H):
+#     global _share_H
+#     _share_H = value_H
+#
+# def dot_xt_Hr_preference(x_t, r):
+#     global _share_H
+#     x_r = _share_H[r] @ x_t + _share_H[r].T @ x_t
+#     return x_r
 
 
 def dot_xt_Hr_from_disk_hard(x_t, name_matrix_H, in_temp_path, r):
@@ -91,7 +93,7 @@ def sparse_matrix_H_shared_memory_and_disk(q, A,
                                            name,
                                            startup_idx_save_disk,
                                            in_temp_path,
-                                           nb_process=4):
+                                           nb_process=2):
     _t = TicToc("sparse_matrix_H_shared_memory_and_disk")
     _t.set_print_toc(False)
 
