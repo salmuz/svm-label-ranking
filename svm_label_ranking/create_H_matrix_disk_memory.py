@@ -26,18 +26,24 @@ import numpy as np
 import multiprocessing
 from functools import partial
 import time
+from threading import Thread
 
 
-# It's not possible to share memory until version 3.8 python (for bigger space memory)
-# global variable to do multiprocessing multiplication if need
-# def init_shared_H(value_H):
-#     global _share_H
-#     _share_H = value_H
-#
-# def dot_xt_Hr_preference(x_t, r):
-#     global _share_H
-#     x_r = _share_H[r] @ x_t + _share_H[r].T @ x_t
-#     return x_r
+# https://stackoverflow.com/a/6894023/784555
+class ThreadWithReturnValue(Thread):
+    def __init__(self, group=None, target=None, name=None,
+                 args=(), kwargs={}, Verbose=None):
+        Thread.__init__(self, group, target, name, args, kwargs)
+        self._return = None
+
+    def run(self):
+        if self._target is not None:
+            self._return = self._target(*self._args,
+                                        **self._kwargs)
+
+    def join(self, *args):
+        Thread.join(self, *args)
+        return self._return
 
 
 def dot_xt_Hr_from_disk_hard(x_t, name_matrix_H, in_temp_path, r):
@@ -96,12 +102,22 @@ def sparse_matrix_H_shared_memory_and_disk(q, A,
                                            nb_process=2):
     _t = TicToc("sparse_matrix_H_shared_memory_and_disk")
     _t.set_print_toc(False)
+    H = dict({})
 
     print('Size H-matrix (nb_preference, nb_instances, d_size) (%s, %s, %s)' %
           (nb_preferences, nb_instances, nb_preferences * nb_instances), flush=True)
 
+    def __save_data_matrix(data, rows, cols, d_size, r):
+        data_coo = coo_matrix((data, (rows, cols)), shape=(d_size, d_size))
+        if startup_idx_save_disk - 1 > r:
+            H[r] = data_coo.tocsr()
+        else:
+            print("Saving pair-wise preference label (%s)" % ('P' + str(r + 1)), flush=True)
+            save_npz(file=in_temp_path + name + "_" + str(r + 1) + ".npz", matrix=data_coo.tocsr())
+        return True
+
+    singleThread = None
     pool = multiprocessing.Pool(processes=nb_process)
-    H = dict({})
     d_size = nb_preferences * nb_instances
     for r in range(0, nb_preferences):
         rows, cols, data = array.array('i'), array.array('i'), array.array('d')
@@ -122,12 +138,13 @@ def sparse_matrix_H_shared_memory_and_disk(q, A,
         rows = np.frombuffer(rows, dtype=np.int32)
         cols = np.frombuffer(cols, dtype=np.int32)
         data = np.frombuffer(data, dtype='d')
-        data_coo = coo_matrix((data, (rows, cols)), shape=(d_size, d_size))
 
-        if startup_idx_save_disk - 1 > r:
-            H[r] = data_coo.tocsr()
-        else:
-            print("Saving pair-wise preference label (%s)" % ('P' + str(r + 1)), flush=True)
-            save_npz(file=in_temp_path + name + "_" + str(r + 1) + ".npz", matrix=data_coo.tocsr())
+        if singleThread is not None:
+            singleThread.join()
+        singleThread = ThreadWithReturnValue(target=__save_data_matrix, args=(data, rows, cols, d_size, r))
+        singleThread.start()
+
+    if singleThread is not None:
+        singleThread.join()
     pool.close()
     return H

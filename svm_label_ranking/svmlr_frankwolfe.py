@@ -20,7 +20,8 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from .tools import create_logger, timeit, is_symmetric
-from .create_H_matrix_disk_memory import sparse_matrix_H_shared_memory_and_disk, dot_xt_Hr_from_disk_hard
+from .create_H_matrix_disk_memory import sparse_matrix_H_shared_memory_and_disk, dot_xt_Hr_from_disk_hard, \
+    ThreadWithReturnValue
 from cvxopt import solvers, matrix, spmatrix, sparse
 from scipy.sparse import coo_matrix, load_npz
 from scipy.optimize import linprog
@@ -64,7 +65,8 @@ class SVMLR_FrankWolfe(object):
             else startup_idx_save_disk
         self.SOLVER_LP_DEFAULT = SOLVER_LP
         self.process_dot_Hxt = process_dot_Hxt
-        self.pool = self.pool = multiprocessing.Pool(processes=self.process_dot_Hxt)
+        if self.process_dot_Hxt > 0:
+            self.pool = multiprocessing.Pool(processes=self.process_dot_Hxt)
 
     def get_alpha(self, A, q, v, max_iter=100, tol=1e-8):
         # 0. calculate the large matrix des
@@ -109,16 +111,38 @@ class SVMLR_FrankWolfe(object):
                            g_t, it, it + 1 < max_iter)
         return x_t
 
+    # async def dot_xt_Hr_preference(self, x_t, H):
+    #     async def one_iteration(r):
+    #         return H[r] @ x_t + H[r].T @ x_t
+    #
+    #     coros_or_futures = [one_iteration(r) for r in range(0, self.startup_idx_save_disk - 1)]
+    #     res = await asyncio.gather(*coros_or_futures)
+    #     return np.sum(res, axis=0)
+
     def compute_H_dot_x_grad(self, x_t, H, add_vec=None):
         # Gradient evaluate in current value x_t
         grad_fx = np.zeros(self.d_size)
         if self.is_shared_H_memory:  # multiprocessing inner product space
-            if self.process_dot_Hxt > 1:
-                # singleton processing
-                for r in range(0, self.startup_idx_save_disk - 1):
-                    grad_fx = grad_fx + H[r] @ x_t + H[r].T @ x_t
 
-                # multiprocessing dot calculation
+            def dot_xt_Hr_preference(H, x_t, r):
+                self._logger.debug("Dot-inner-product preference (H_%s @ x_t)", r)
+                return H @ x_t + H.T @ x_t
+
+            __thread_dot = [None] * (self.startup_idx_save_disk - 1)
+            for i in range(self.startup_idx_save_disk - 1):
+                __thread_dot[i] = ThreadWithReturnValue(target=dot_xt_Hr_preference, args=(H[i], x_t, i,))
+                __thread_dot[i].start()
+
+            if self.process_dot_Hxt > 1:
+
+                # (1) asynchronous at testing
+                # import asyncio
+                # loop = asyncio.new_event_loop()
+                # inner_product = loop.run_until_complete(self.dot_xt_Hr_preference(x_t, H))
+                # grad_fx = grad_fx + inner_product
+                # loop.close()
+
+                # (2) multiprocessing dot calculation
                 # It's not possible because it does not share memory very well (until python-3.8)
                 # fnc_target = partial(dot_xt_Hr_preference, x_t)
                 # res = self.pool.map(fnc_target, range(0, self.startup_idx_save_disk - 1))
@@ -129,14 +153,18 @@ class SVMLR_FrankWolfe(object):
                 res = self.pool.map(func_target, range(self.startup_idx_save_disk - 1, self.nb_preferences))
                 for x_r in res:
                     grad_fx = grad_fx + x_r
+
             else:  # singleton processing
-                for r in range(0, self.startup_idx_save_disk - 1):
-                    grad_fx = grad_fx + H[r] @ x_t + H[r].T @ x_t
+                # for r in range(0, self.startup_idx_save_disk - 1):
+                #     grad_fx = grad_fx + H[r] @ x_t + H[r].T @ x_t
 
                 for r in range(self.startup_idx_save_disk - 1, self.nb_preferences):
                     H_disk = load_npz(self.in_temp_path + self.name_matrix_H + "_" + str(r + 1) + ".npz")
                     x_disk = H_disk @ x_t + H_disk.T @ x_t
                     grad_fx = grad_fx + x_disk
+
+            for _dot in __thread_dot:
+                grad_fx = grad_fx + _dot.join()
         else:
             grad_fx = H @ x_t + H.T @ x_t
 
