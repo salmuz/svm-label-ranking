@@ -52,7 +52,14 @@ def dot_xt_Hr_from_disk_hard(x_t, name_matrix_H, in_temp_path, r):
     return H_disk @ x_t + H_disk.T @ x_t
 
 
-def __parallel_create_H_r_l(q, A, r, l, iis):
+def __init_shared_matrix_A(A_default):
+    global A
+    A = A_default
+
+
+def __parallel_create_H_r_l(q, r, args):
+    global A
+    l, iis = args
     nb_instances, _ = A.shape
     rows, cols, data = array.array('i'), array.array('i'), array.array('d')
 
@@ -99,7 +106,8 @@ def sparse_matrix_H_shared_memory_and_disk(q, A,
                                            name,
                                            startup_idx_save_disk,
                                            in_temp_path,
-                                           nb_process=2):
+                                           nb_blocks=1,
+                                           nb_process=1):
     _t = TicToc("sparse_matrix_H_shared_memory_and_disk")
     _t.set_print_toc(False)
     H = dict({})
@@ -116,29 +124,28 @@ def sparse_matrix_H_shared_memory_and_disk(q, A,
             save_npz(file=in_temp_path + name + "_" + str(r + 1) + ".npz", matrix=data_coo.tocsr())
         return True
 
+    modulo = nb_instances % nb_blocks
+    iis = np.split(np.arange(nb_instances - modulo), nb_blocks)
+    iis[nb_blocks - 1] = np.append(iis[nb_blocks - 1], np.arange(nb_instances - modulo, nb_instances))
+    # single thread or multiprocessing to create or save the sparse matrix
     singleThread = None
-    pool = multiprocessing.Pool(processes=nb_process)
+    pool = multiprocessing.Pool(processes=nb_process, initializer=__init_shared_matrix_A, initargs=(A,))
     d_size = nb_preferences * nb_instances
     for r in range(0, nb_preferences):
+        _t.tic()
         rows, cols, data = array.array('i'), array.array('i'), array.array('d')
-        for l in range(r, nb_preferences):
-            _t.tic()
-            parallel_create_sub_matrix = partial(__parallel_create_H_r_l, q, A, r, l)
-            modulo = nb_instances % nb_process
-            iis = np.split(np.arange(nb_instances - modulo), nb_process)
-            iis[nb_process - 1] = np.append(iis[nb_process - 1], np.arange(nb_instances - modulo, nb_instances))
-            sparse_infos = pool.map(parallel_create_sub_matrix, iis)
-            for rs, cs, dat in sparse_infos:
-                rows.extend(rs)
-                cols.extend(cs)
-                data.extend(dat)
-            print("Time pair-wise preference label (%s, %s, %s)" %
-                  ('P' + str(r + 1), 'P' + str(l + 1), _t.toc()), flush=True)
+        iis_preferences = [(l, i) for l in range(r, nb_preferences) for i in iis]
+        parallel_create_sub_matrix = partial(__parallel_create_H_r_l, q, r)
+        sparse_infos = pool.map(parallel_create_sub_matrix, iis_preferences)
+        for rs, cs, dat in sparse_infos:
+            rows.extend(rs)
+            cols.extend(cs)
+            data.extend(dat)
+        print("Time pair-wise preference label (%s, %s)" % ('P' + str(r + 1), _t.toc()), flush=True)
 
         rows = np.frombuffer(rows, dtype=np.int32)
         cols = np.frombuffer(cols, dtype=np.int32)
         data = np.frombuffer(data, dtype='d')
-
         if singleThread is not None:
             singleThread.join()
         singleThread = ThreadWithReturnValue(target=__save_data_matrix, args=(data, rows, cols, d_size, r))

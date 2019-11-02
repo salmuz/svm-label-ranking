@@ -109,6 +109,7 @@ class SVMLR_FrankWolfe(object):
 
         self._logger.debug("Cost-Fx-gradient and #iters (grad_fx, iters, is_optimal) (%s, %s, %s)",
                            g_t, it, it + 1 < max_iter)
+        self._logger.debug("Vector solution alphas (%s)", x_t)
         return x_t
 
     # async def dot_xt_Hr_preference(self, x_t, H):

@@ -82,10 +82,10 @@ def train_test_split(dataArff, test_pct=0.5, random_seed=None):
     return training, testing
 
 
-def create_logger(name="default", DEBUG=False):
+def create_logger(name="default", DEBUG=False, default_log_level=logging.DEBUG):
     logger = logging.getLogger(name)
     if not logger.hasHandlers():
-        logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
+        logger.setLevel(default_log_level if DEBUG else logging.INFO)
         handler = logging.StreamHandler(sys.stdout)
         handler.flush = sys.stdout.flush
         handler.setLevel(logging.DEBUG)

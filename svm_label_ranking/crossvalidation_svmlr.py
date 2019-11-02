@@ -192,7 +192,7 @@ def cross_validation(in_path,
                                                                                 (training, testing)))
 
         # save and print save partial calculations
-        for kfold_time in range(k_fold_cv):
+        for kfold_time, _ in enumerate(acc_correctness_kfold):
             avg_correctness[time] += acc_correctness_kfold[kfold_time]
             logger.debug(
                 "Partial-k-fold_step (time, k-fold, acc_correctness, cum_avg_correctness) (%s, %s, %s, %s)",

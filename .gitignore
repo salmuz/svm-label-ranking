@@ -41,3 +41,6 @@ output/
 
 # Others
 *.csv
+dist/
+*.swp
+*.dat
