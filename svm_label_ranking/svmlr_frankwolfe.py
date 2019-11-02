@@ -82,31 +82,57 @@ class SVMLR_FrankWolfe(object):
         lp_programing = self.__wrapper_lp_solvers(0, max_limit, solver=self.SOLVER_LP_DEFAULT)
 
         # 3. Frank-Wolf algorithm
-        x_t = np.zeros(self.d_size)  # init value for algorithm frank-wolfe
+        x_middle = np.ones(self.d_size) * max_limit * 0.5
+        x_t = np.zeros(self.d_size)  # np.ones(self.d_size) * max_limit * 0.5 # init value for algorithm frank-wolfe
         c = np.repeat(-1.0, self.d_size)
-        g_t, it = 0, 0
+        g_t, it, step_size = 0, 0, 0
+        _inits = [x_t, np.ones(self.d_size) * max_limit * 0.5, np.ones(self.d_size) * max_limit]
+        _grads = []
+        solutions = []
+        for x_init_t in _inits:
+            grad_fx = None
+            x_t = np.copy(x_init_t)
+            for it in range(max_iter):
+                # Step 0: compute gradient of the sparse matrix
+                grad_fx = self.compute_H_dot_x_grad(x_t, H, c)
 
-        for it in range(max_iter):
-            # Step 0: compute gradient of the sparse matrix
-            grad_fx = self.compute_H_dot_x_grad(x_t, H, c)
+                # Step 1: direction-finding sub-problem
+                s_t = lp_programing(grad_fx)
+                d_t = s_t - x_t
+                g_t = -1 * (grad_fx.dot(d_t))
+                # verify if gap is below tolerance
+                if 0 < g_t <= tol:
+                    break
 
-            # Step 1: direction-finding sub-problem
-            s_t = lp_programing(grad_fx)
-            d_t = s_t - x_t
-            g_t = -1 * (grad_fx.dot(d_t))
-            # verify if gap is below tolerance
-            if g_t <= tol:
-                break
-            # Step 2: set step size by line search
-            Hd_t = self.compute_H_dot_x_grad(d_t, H)
-            z_t = d_t.dot(Hd_t)
-            step_size = min(-1 * (c.dot(d_t) + x_t.dot(Hd_t)) / z_t, 1.)
-            # Step 3: update current value
-            x_t = x_t + step_size * d_t
-            if self.DEBUG:
-                self._trace_convergence.append(g_t)
-                self._logger.debug("Gradient-cost-iteration (it, grad) (%s, %s)", it, g_t)
+                # verify first of all if gap is not negative
+                if g_t < 0:
+                    self._logger.debug("Gradient-negative (it, grad) (%s, %s)", it, g_t)
+                    g_u = -1 * (grad_fx.dot(x_middle - x_t))
+                    new_step_size = g_t / (-4 * g_u)
+                    if np.isnan(new_step_size):
+                        new_step_size = 1e-8
+                    if new_step_size < step_size:
+                        self._logger.debug("new-step-size-little (new, old) (%s, %s)", new_step_size, step_size)
+                        step_size = min(new_step_size, step_size / 2)
+                    self._logger.debug("new-step-gradient-negative (%s)", step_size)
+                    s_t = (1 - new_step_size) * s_t + new_step_size * x_middle
+                    d_t = s_t + x_t
 
+                # Step 2: set step size by line search
+                Hd_t = self.compute_H_dot_x_grad(d_t, H)
+                z_t = d_t.dot(Hd_t)
+                step_size = min(-1 * (c.dot(d_t) + x_t.dot(Hd_t)) / z_t, 1.)
+                # Step 3: update current value
+                x_t = x_t + step_size * d_t
+                if self.DEBUG:
+                    self._trace_convergence.append(g_t)
+                    self._logger.debug("Gradient-cost-iteration (it, grad) (%s, %s)", it, g_t)
+
+            _grads.append(0.5 * (grad_fx - c).dot(x_t) + c.dot(x_t))
+            solutions.append(x_t)
+
+        print("-gradients--->", _grads, flush=True)
+        x_t = solutions[np.argmin(_grads)]
         self._logger.debug("Cost-Fx-gradient and #iters (grad_fx, iters, is_optimal) (%s, %s, %s)",
                            g_t, it, it + 1 < max_iter)
         self._logger.debug("Vector solution alphas (%s)", x_t)
